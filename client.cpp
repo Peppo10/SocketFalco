@@ -7,92 +7,76 @@
 #include <conio.h>
 #include "service.hpp"
 #include "caching.hpp"
-
 #define FAILED_TO_CONNECT 404
-
-using namespace std;
 
 SOCKET local_socket;
 sockaddr_in server_socket_addr;
 WSADATA wsadata;
 WORD versionRequested = MAKEWORD(2, 2);
-message ownmessage;
-string chatbuffer = "";
-string newmessages = "", newmessages_for_server = "";
-int serverconnect = DISCONNECT, dirtyflag;
-bool notified;
-string username;
-string servername;
+srv::message ownmessage;
+
 condition_variable cv_print_message;
 mutex m1;
+
+string chatbuffer = "";
+string newmessages = "";
+string newmessages_for_server = "";
+string input = "";
+string username;
+string servername;
+
 int connection_flag;
+char owntext[BUFSIZE] = {0};
+int serverconnect = srv::DISCONNECT, dirtyflag;
+bool notified;
 
 int try_connection(u_long, u_short);
+
+bool message_is_ready();
+
+void send_auth();
+
+void send_new_message();
+
+void wait_server();
+
+void handle_new_user();
 
 int main()
 {
 
     if ((dirtyflag = clca::load_chat(chatbuffer, newmessages_for_server, newmessages, "/client_chat_cache", "/cache.txt", username)) == FILE_NOT_ALREADY_EXISTS)
     {
-        do
-        {
-            username = "";
-            system("cls");
-            cout << "\033[38;2;255;255;0mFIRST ACCESS\033[0m\n";
-            cout << "Enter your name(MAX 15 character):";
-            cin >> username;
-        } while (username.length() > 15 && username.length() > 0);
+        handle_new_user();
     }
 
     cout << "\033[38;2;255;255;0mWelcome " << username << "!\033[0m\n";
 
-    char owntext[BUFSIZE] = {0};
-    string input = "";
-
     if ((connection_flag = try_connection(0x7f000001, 30000)) == FAILED_TO_CONNECT)
     {
         cout << "\033[38;2;255;0;0mCANNOT CONNECT TO THE SERVER\n";
-        cout << "write your message here, when you'll connect again with the server it'll receive it\033[0m\n";
+        cout << "write your message here, when you'll connect again with the server will receive it\033[0m\n";
         cout << "You:";
     }
     else
     {
         notified = false;
-        thread *awaitmessage = new thread(client_listen_reicvmessage, local_socket, ref(serverconnect), chatbuffer, ref(newmessages), ref(m1), ref(servername), ref(cv_print_message), ref(notified), ref(input));
+
+        // listening thread
+        new thread(srv::client_listen_reicvmessage, local_socket, ref(serverconnect), chatbuffer, ref(newmessages), ref(m1), ref(servername), ref(cv_print_message), ref(notified), ref(input));
 
         // this snippet is thread safe because the server will not send anything until it receive the AUTH message from client
-        ownmessage.type = AUTH;
-        strcpy(ownmessage.text, username.c_str());
-        strcat(ownmessage.text, "-");
+        send_auth();
 
-        if (dirtyflag == FILE_EXIST__NEW_MESSAGE)
-            strcat(ownmessage.text, "new");
+        wait_server();
 
-        send(local_socket, (char *)&ownmessage, sizeof(ownmessage), 0);
+        send_new_message();
 
+        wait_server();
+
+        if (serverconnect == srv::CONNECT_WITH_NEW_MESSAGE)
         {
-            unique_lock<mutex> ul(m1);
-            cv_print_message.wait(ul, []
-                                  { return notified; });
-
-            notified = false;
-        }
-
-        ownmessage.type = NEW_MESSAGE;
-        strcpy(ownmessage.text, newmessages_for_server.c_str());
-        send(local_socket, (char *)&ownmessage, sizeof(ownmessage), 0);
-
-        {
-            unique_lock<mutex> ul(m1);
-            cv_print_message.wait(ul, []
-                                  { return notified; });
-
-            notified = false;
-        }
-
-        if (serverconnect == CONNECT_WITH_NEW_MESSAGE)
-        {
-            serverconnect = CONNECT; // if is connected with new messages from server it prints the chatbuffer in service thread
+            serverconnect = srv::CONNECT; // if is connected with new messages from server it prints the chatbuffer in service thread
         }
         else
         { // if is connected without new messages from server it prints the chatbuffer
@@ -103,29 +87,10 @@ int main()
 
     do
     {
-        char ch = 0;
         input = "";
 
-        while (1)
+        while (!message_is_ready())
         {
-            while (!_kbhit())
-            {
-            }
-
-            ch = _getch();
-
-            if (ch == '\r')
-                break;
-
-            if ((ch != '\b') && (input.length() < BUFSIZE - (username.size() + 3))) // 3 is the size of ":"+"\n"+"\0"
-                input += ch;
-
-            if ((ch == '\b') && (input.size() > 0))
-                input.pop_back();
-
-            system("cls");
-            cout << chatbuffer + newmessages;
-            cout << "You:" << input;
         }
 
         m1.lock();
@@ -134,7 +99,7 @@ int main()
         {
             if (input == "quit")
             {
-                serverconnect = DISCONNECT;
+                serverconnect = srv::DISCONNECT;
                 closesocket(local_socket);
                 m1.unlock();
 
@@ -161,9 +126,9 @@ int main()
                 newmessages += ("You:" + input + "\n");
             }
 
-            if (serverconnect == CONNECT)
+            if (serverconnect == srv::CONNECT)
             {
-                ownmessage.type = MESSAGE;
+                ownmessage.type = srv::MESSAGE;
                 strcpy(ownmessage.text, owntext);
                 send(local_socket, (char *)&ownmessage, sizeof(ownmessage), 0);
             }
@@ -205,7 +170,73 @@ int try_connection(u_long ip_address, u_short port)
         return FAILED_TO_CONNECT;
     }
 
-    serverconnect = CONNECT;
+    serverconnect = srv::CONNECT;
 
     return 1;
+}
+
+bool message_is_ready()
+{
+    char ch = 0;
+
+    while (!_kbhit())
+    {
+    }
+
+    ch = _getch();
+
+    if (ch == '\r')
+        return true;
+
+    if ((ch != '\b') && (input.length() < BUFSIZE - (username.size() + 3))) // 3 is the size of ":"+"\n"+"\0"
+        input += ch;
+
+    if ((ch == '\b') && (input.size() > 0))
+        input.pop_back();
+
+    system("cls");
+    cout << chatbuffer + newmessages;
+    cout << "You:" << input;
+
+    return false;
+}
+
+void send_auth()
+{
+    ownmessage.type = srv::AUTH;
+    strcpy(ownmessage.text, username.c_str());
+    strcat(ownmessage.text, "-");
+
+    if (dirtyflag == FILE_EXIST__NEW_MESSAGE)
+        strcat(ownmessage.text, "new");
+
+    send(local_socket, (char *)&ownmessage, sizeof(ownmessage), 0);
+}
+
+void send_new_message()
+{
+    ownmessage.type = srv::NEW_MESSAGE;
+    strcpy(ownmessage.text, newmessages_for_server.c_str());
+    send(local_socket, (char *)&ownmessage, sizeof(ownmessage), 0);
+}
+
+void wait_server()
+{
+    unique_lock<mutex> ul(m1);
+    cv_print_message.wait(ul, []
+                          { return notified; });
+
+    notified = false;
+}
+
+void handle_new_user()
+{
+    do
+    {
+        username = "";
+        system("cls");
+        cout << "\033[38;2;255;255;0mFIRST ACCESS\033[0m\n";
+        cout << "Enter your name(MAX 15 character):";
+        cin >> username;
+    } while (username.length() > 15 && username.length() > 0);
 }

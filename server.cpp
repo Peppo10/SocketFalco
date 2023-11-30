@@ -9,28 +9,43 @@
 #include <condition_variable>
 #include "service.hpp"
 #include "caching.hpp"
-#define BUFSIZE 264
+
 #define PORT 30000
-using namespace std;
 
 SOCKET serverSocket, acceptedSocket; // socket
 sockaddr_in service;                 // socket address for server socket
 sockaddr_in client_addr;             // socket address client side
 int client_addr_len = sizeof(sockaddr_in);
-WSADATA wsadata;
-message ownmessage;
-bool notified;
 WORD versionRequested = MAKEWORD(2, 2);
-string chatbuffer = "";
-string newmessages = "", newmessages_for_client = "";
-int clientconnect = DISCONNECT;
-int dirtyclient;
-string username = "Peppo";
-string clientname = "";
+WSADATA wsadata;
+srv::message ownmessage;
+
 condition_variable cv_load_chat;
 mutex m1;
 
+string username = "Server";
+string clientname = "";
+string chatbuffer = "";
+string newmessages = "";
+string newmessages_for_client = "";
+string input = "";
+char owntext[BUFSIZE] = {0};
+
+int clientconnect = srv::DISCONNECT;
+int dirtyclient;
+bool notified;
+
 int setup_server(int port);
+
+bool message_is_ready();
+
+void send_auth();
+
+void send_new_message();
+
+void wait_client();
+
+void wait_client_auth();
 
 int main()
 {
@@ -48,64 +63,33 @@ int main()
         }
         else
         {
-            cout << "Connection established! with " << int(client_addr.sin_addr.S_un.S_un_b.s_b1) << "." << int(client_addr.sin_addr.S_un.S_un_b.s_b2) << "." << int(client_addr.sin_addr.S_un.S_un_b.s_b3) << "." << int(client_addr.sin_addr.S_un.S_un_b.s_b4) << endl;
-            clientconnect = CONNECT;
+            cout << "Connection established! with "
+                 << int(client_addr.sin_addr.S_un.S_un_b.s_b1)
+                 << "."
+                 << int(client_addr.sin_addr.S_un.S_un_b.s_b2)
+                 << "."
+                 << int(client_addr.sin_addr.S_un.S_un_b.s_b3)
+                 << "."
+                 << int(client_addr.sin_addr.S_un.S_un_b.s_b4) << endl;
+
+            clientconnect = srv::CONNECT;
         }
 
-        char owntext[BUFSIZE] = {0};
-        string input = "";
         notified = false;
 
-        thread *awaitmessage = new thread(server_listen_reicvmessage, acceptedSocket, ref(clientconnect), ref(chatbuffer), ref(newmessages), ref(m1), ref(clientname), ref(cv_load_chat), ref(notified), ref(input));
+        new thread(srv::server_listen_reicvmessage, acceptedSocket, ref(clientconnect), ref(chatbuffer), ref(newmessages), ref(m1), ref(clientname), ref(cv_load_chat), ref(notified), ref(input));
 
+        wait_client_auth();
+
+        send_auth();
+
+        wait_client();
+
+        send_new_message();
+
+        if (clientconnect == srv::CONNECT_WITH_NEW_MESSAGE)
         {
-            unique_lock<mutex> ul(m1);
-            cv_load_chat.wait(ul, []
-                              { return (clientname == "") ? false : true; });
-            char filename[21] = "/";
-            strcat(filename, clientname.c_str());
-            strcat(filename, ".txt");
-            dirtyclient = clca::load_chat(chatbuffer, newmessages_for_client, newmessages, "/server_chat_cache", filename, username);
-        }
-
-        string auth;
-
-        switch (dirtyclient)
-        {
-        case FILE_ALREADY_EXISTS:
-            auth = "\033[38;2;0;255;0mUser authenticated, loading the chat...\033[0m\n";
-            break;
-
-        case FILE_EXIST__NEW_MESSAGE:
-            auth = "\033[38;2;0;255;0mUser authenticated, loading the chat with \033[4mnew messages!\033[0m\n";
-            break;
-
-        case FILE_NOT_ALREADY_EXISTS:
-            auth = "\033[38;2;100;100;255mNew user,initialization...\033[0m\n";
-            break;
-        }
-
-        ownmessage.type = AUTH;
-        strcpy(ownmessage.text, auth.c_str());
-        send(acceptedSocket, (char *)&ownmessage, sizeof(ownmessage), 0);
-
-        {
-            unique_lock<mutex> ul(m1);
-            cv_load_chat.wait(ul, []
-                              { return notified; });
-
-            notified = false;
-        }
-
-        ownmessage.type = NEW_MESSAGE;
-        strcpy(ownmessage.text, newmessages_for_client.c_str());
-        send(acceptedSocket, (char *)&ownmessage, sizeof(ownmessage), 0);
-
-        newmessages_for_client = "";
-
-        if (clientconnect == CONNECT_WITH_NEW_MESSAGE)
-        {
-            clientconnect = CONNECT;
+            clientconnect = srv::CONNECT;
         }
         else
         { // if is connected without new messages it prints the chatbuffer
@@ -115,29 +99,10 @@ int main()
 
         do
         {
-            char ch = 0;
             input = "";
 
-            while (1)
+            while (!message_is_ready())
             {
-                while (!_kbhit())
-                {
-                }
-
-                ch = _getch();
-
-                if (ch == '\r')
-                    break;
-
-                if ((ch != '\b') && (input.length() < BUFSIZE - (username.size() + 3))) // 3 is the size of ":"+"\n"+"\0"
-                    input += ch;
-
-                if ((ch == '\b') && (input.size() > 0))
-                    input.pop_back();
-
-                system("cls");
-                cout << chatbuffer + newmessages;
-                cout << "You:" << input;
             }
 
             m1.lock();
@@ -146,7 +111,7 @@ int main()
             {
                 if (input == "quit")
                 {
-                    clientconnect = DISCONNECT;
+                    clientconnect = srv::DISCONNECT;
                     closesocket(acceptedSocket);
                     m1.unlock();
 
@@ -166,9 +131,9 @@ int main()
                     newmessages += ("You:" + input + "\n");
                 }
 
-                if (clientconnect == CONNECT)
+                if (clientconnect == srv::CONNECT)
                 {
-                    ownmessage.type = MESSAGE;
+                    ownmessage.type = srv::MESSAGE;
                     strcpy(ownmessage.text, owntext);
                     send(acceptedSocket, (char *)&ownmessage, sizeof(ownmessage), 0);
                 }
@@ -242,4 +207,84 @@ int setup_server(int port)
     }
 
     return 0;
+}
+
+bool message_is_ready()
+{
+    char ch = 0;
+
+    while (!_kbhit())
+    {
+    }
+
+    ch = _getch();
+
+    if (ch == '\r')
+        return true;
+
+    if ((ch != '\b') && (input.length() < BUFSIZE - (username.size() + 3))) // 3 is the size of ":"+"\n"+"\0"
+        input += ch;
+
+    if ((ch == '\b') && (input.size() > 0))
+        input.pop_back();
+
+    system("cls");
+    cout << chatbuffer + newmessages;
+    cout << "You:" << input;
+
+    return false;
+}
+
+void send_auth()
+{
+    string auth;
+
+    switch (dirtyclient)
+    {
+    case FILE_ALREADY_EXISTS:
+        auth = "\033[38;2;0;255;0mUser authenticated, loading the chat...\033[0m\n";
+        break;
+
+    case FILE_EXIST__NEW_MESSAGE:
+        auth = "\033[38;2;0;255;0mUser authenticated, loading the chat with \033[4mnew messages!\033[0m\n";
+        break;
+
+    case FILE_NOT_ALREADY_EXISTS:
+        auth = "\033[38;2;100;100;255mNew user,initialization...\033[0m\n";
+        break;
+    }
+
+    ownmessage.type = srv::AUTH;
+    strcpy(ownmessage.text, auth.c_str());
+    send(acceptedSocket, (char *)&ownmessage, sizeof(ownmessage), 0);
+}
+
+void send_new_message()
+{
+    ownmessage.type = srv::NEW_MESSAGE;
+    strcpy(ownmessage.text, newmessages_for_client.c_str());
+    send(acceptedSocket, (char *)&ownmessage, sizeof(ownmessage), 0);
+
+    newmessages_for_client = "";
+}
+
+void wait_client()
+{
+    unique_lock<mutex> ul(m1);
+    cv_load_chat.wait(ul, []
+                      { return notified; });
+
+    notified = false;
+}
+
+void wait_client_auth()
+{
+
+    unique_lock<mutex> ul(m1);
+    cv_load_chat.wait(ul, []
+                      { return (clientname == "") ? false : true; });
+    char filename[21] = "/";
+    strcat(filename, clientname.c_str());
+    strcat(filename, ".txt");
+    dirtyclient = clca::load_chat(chatbuffer, newmessages_for_client, newmessages, "/server_chat_cache", filename, username);
 }
