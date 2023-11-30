@@ -29,8 +29,8 @@ SOFTWARE.*/
 #include <mutex>
 #include <conio.h>
 #include <condition_variable>
-#include "service.hpp"
-#include "caching.hpp"
+#include ".\service\service.hpp"
+#include ".\caching\caching.hpp"
 
 #define PORT 30000
 

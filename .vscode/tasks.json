@@ -10,7 +10,7 @@
 				"-g3",
 				"-Wall",
 				"${file}",
-				"${fileDirname}\\service.cpp",
+				"${fileDirname}\\service\\service.cpp",
 				"-o",
 				"${fileDirname}\\${fileBasenameNoExtension}.exe",
 				"-static",

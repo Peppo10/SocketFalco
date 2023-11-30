@@ -27,8 +27,8 @@ SOFTWARE.*/
 #include <thread>
 #include <mutex>
 #include <conio.h>
-#include "service.hpp"
-#include "caching.hpp"
+#include ".\service\service.hpp"
+#include ".\caching\caching.hpp"
 #define FAILED_TO_CONNECT 404
 
 SOCKET local_socket;
