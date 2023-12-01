@@ -153,18 +153,16 @@ void srv::handle_new_messages(char newmessages[BUFSIZE], bool &notified, string 
 void srv::handle_message(char newmessages[BUFSIZE], string chatbuffer, string &my_new_messages, mutex &m1, string input)
 {
     my_new_messages += newmessages;
-    system("cls");
-    cout << chatbuffer + my_new_messages;
+    cout << "\033[G\033[K" << newmessages;
     cout << "You:" << input;
     m1.unlock();
 }
 
 void srv::handle_disconnect_message(string chatbuffer, string &my_new_messages, mutex &m1, string input, int &connection_flag, char message[])
 {
-    system("cls");
     my_new_messages += message;
-    cout << chatbuffer + my_new_messages;
     connection_flag = DISCONNECT;
+    cout << "\033[G\033[K" << message;
     cout << "You:" << input;
     m1.unlock();
 }

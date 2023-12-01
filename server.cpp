@@ -122,6 +122,7 @@ int main()
         do
         {
             input = "";
+            cout << "\033[s";
 
             while (!message_is_ready())
             {
@@ -161,13 +162,10 @@ int main()
                 }
             }
 
-            system("cls");
-            cout << chatbuffer + newmessages;
-
             m1.unlock();
 
             memset(owntext, 0, BUFSIZE);
-            cout << "You:";
+            cout << "\nYou:";
         } while (1);
 
         system("cls");
@@ -250,9 +248,7 @@ bool message_is_ready()
     if ((ch == '\b') && (input.size() > 0))
         input.pop_back();
 
-    system("cls");
-    cout << chatbuffer + newmessages;
-    cout << "You:" << input;
+    cout << "\033[u\033[J" << input;
 
     return false;
 }
