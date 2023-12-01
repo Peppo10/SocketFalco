@@ -52,7 +52,7 @@ char owntext[BUFSIZE] = {0};
 int serverconnect = srv::DISCONNECT, dirtyflag;
 bool notified;
 
-int try_connection(u_long, u_short);
+int try_connection(in_addr, u_short);
 
 bool message_is_ready();
 
@@ -64,8 +64,18 @@ void wait_server();
 
 void handle_new_user();
 
-int main()
+int main(int argc, char *argv[])
 {
+
+    if (argc != 2)
+    {
+        cout << "Only one argument <ip-address> is accepted" << endl;
+        return EXIT_FAILURE;
+    }
+
+    in_addr sin_addr;
+
+    inet_pton(AF_INET, argv[1], &sin_addr);
 
     if ((dirtyflag = clca::load_chat(chatbuffer, newmessages_for_server, newmessages, "/client_chat_cache", "/cache.txt", username)) == FILE_NOT_ALREADY_EXISTS)
     {
@@ -74,7 +84,7 @@ int main()
 
     cout << "\033[38;2;255;255;0mWelcome " << username << "!\033[0m\n";
 
-    if ((connection_flag = try_connection(0x7f000001, 30000)) == FAILED_TO_CONNECT)
+    if ((connection_flag = try_connection(sin_addr, 30000)) == FAILED_TO_CONNECT)
     {
         cout << "\033[38;2;255;0;0mCANNOT CONNECT TO THE SERVER\n";
         cout << "write your message here, when you'll connect again with the server will receive it\033[0m\n";
@@ -137,7 +147,7 @@ int main()
                     clca::save_chat(full_chat, username);
                 }
 
-                return 0;
+                return EXIT_SUCCESS;
             }
             else
             {
@@ -168,7 +178,7 @@ int main()
     WSACleanup();
 }
 
-int try_connection(u_long ip_address, u_short port)
+int try_connection(in_addr ip_address, u_short port)
 {
     if (int result = WSAStartup(versionRequested, &wsadata))
     {
@@ -184,7 +194,7 @@ int try_connection(u_long ip_address, u_short port)
 
     server_socket_addr.sin_family = AF_INET;
     server_socket_addr.sin_port = htons(port);
-    server_socket_addr.sin_addr.S_un.S_addr = htonl(ip_address);
+    server_socket_addr.sin_addr = ip_address;
 
     if (connect(local_socket, (sockaddr *)&server_socket_addr, sizeof(server_socket_addr)) == SOCKET_ERROR)
     {

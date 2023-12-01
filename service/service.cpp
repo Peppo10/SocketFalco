@@ -26,8 +26,6 @@ SOFTWARE.*/
 #include <condition_variable>
 #include <mutex>
 
-using namespace srv;
-
 char CLIENT_DISCONNECT[] = "\033[38;2;255;0;0mThe client is disconnected\033[0m\n";
 char SERVER_DISCONNECT[] = "\033[38;2;255;0;0mThe server is disconnected\033[0m\n";
 char NEW_MESSAGES[] = "\033[38;2;255;255;0mNew messages!\033[0m\n";
