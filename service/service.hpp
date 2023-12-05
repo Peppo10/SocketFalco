@@ -23,7 +23,16 @@ SOFTWARE.*/
 #ifndef SERVICE_H
 #define SERVICE_H
 #define BUFSIZE 264
+
+#ifdef _WIN32
 #include <winsock2.h>
+typedef SOCKET _SOCKET;
+#else
+#include <sys/socket.h>
+typedef int _SOCKET;
+#endif
+
+#include <string.h>
 #include <iostream>
 #include <condition_variable>
 #include <mutex>
@@ -35,8 +44,8 @@ namespace srv
     void handle_new_messages(char newmessages[BUFSIZE], bool &notified, string chatbuffer, string &my_new_messages, condition_variable &cv, mutex &m1);
     void handle_message(char newmessages[BUFSIZE], string chatbuffer, string &my_new_messages, mutex &m1, string input);
     void handle_disconnect_message(string chatbuffer, string &my_new_messages, mutex &m1, string input, int &connection_flag, char *message);
-    void client_listen_reicvmessage(SOCKET local_socket, int &connection_flag, const string chatbuffer, string &my_new_messages, mutex &m1, string &servername, condition_variable &cv, bool &notified, string &input);
-    void server_listen_reicvmessage(SOCKET acceptedSocket, int &connection_flag, string &chatbuffer, string &my_new_messages, mutex &m1, string &clientname, condition_variable &cv, bool &notified, string &input);
+    void client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag, const string chatbuffer, string &my_new_messages, mutex &m1, string &servername, condition_variable &cv, bool &notified, string &input);
+    void server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_flag, string &chatbuffer, string &my_new_messages, mutex &m1, string &clientname, condition_variable &cv, bool &notified, string &input);
 
     enum typelist
     {

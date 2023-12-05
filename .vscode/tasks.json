@@ -2,7 +2,7 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "build active file",
+			"label": "build active file WIN",
 			"type": "cppbuild",
 			"command": "C:/mingw64/bin/g++.exe",
 			"args": [
@@ -30,6 +30,26 @@
 			},
 			"detail": "compiler: C:/mingw64/bin/g++.exe"
 		},
+		{
+            "label": "build active file UNIX",
+            "type": "cppbuild",
+            "command": "/usr/bin/g++",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-g3",
+                "-Wall",
+                "${file}",
+                "${fileDirname}/service/service.cpp",
+                "-o",
+                "${fileDirname}/${fileBasenameNoExtension}",
+                "-lpthread"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "compiler: /usr/bin/g++"
+        },
 		{
             "label": "Compile and Run",
             "type": "shell",

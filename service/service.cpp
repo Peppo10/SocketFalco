@@ -21,16 +21,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
 
 #include "service.hpp"
-#include <winsock2.h>
-#include <iostream>
-#include <condition_variable>
-#include <mutex>
 
 char CLIENT_DISCONNECT[] = "\033[38;2;255;0;0mThe client is disconnected\033[0m\n";
 char SERVER_DISCONNECT[] = "\033[38;2;255;0;0mThe server is disconnected\033[0m\n";
 char NEW_MESSAGES[] = "\033[38;2;255;255;0mNew messages!\033[0m\n";
 
-void srv::client_listen_reicvmessage(SOCKET local_socket, int &connection_flag, const string chatbuffer, string &my_new_messages, mutex &m1, string &servername, condition_variable &cv, bool &notified, string &input)
+void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag, const string chatbuffer, string &my_new_messages, mutex &m1, string &servername, condition_variable &cv, bool &notified, string &input)
 {
     message servermessage;
     while (1)
@@ -78,7 +74,7 @@ void srv::client_listen_reicvmessage(SOCKET local_socket, int &connection_flag, 
     }
 }
 
-void srv::server_listen_reicvmessage(SOCKET acceptedSocket, int &connection_flag, string &chatbuffer, string &my_new_messages, mutex &m1, string &clientname, condition_variable &cv, bool &notified, string &input)
+void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_flag, string &chatbuffer, string &my_new_messages, mutex &m1, string &clientname, condition_variable &cv, bool &notified, string &input)
 {
     message clientmessage;
     while (1)
@@ -142,7 +138,7 @@ void srv::handle_new_messages(char newmessages[BUFSIZE], bool &notified, string 
     my_new_messages += newmessages;
     cout << NEW_MESSAGES;
     cout << newmessages;
-    cout << "You:";
+    cout << "You:"<<flush;
 
     notified = true;
 
@@ -154,7 +150,7 @@ void srv::handle_message(char newmessages[BUFSIZE], string chatbuffer, string &m
 {
     my_new_messages += newmessages;
     cout << "\033[G\033[K" << newmessages;
-    cout << "You:" << input;
+    cout << "You:" << input<<flush;
     m1.unlock();
 }
 
@@ -163,6 +159,6 @@ void srv::handle_disconnect_message(string chatbuffer, string &my_new_messages, 
     my_new_messages += message;
     connection_flag = DISCONNECT;
     cout << "\033[G\033[K" << message;
-    cout << "You:" << input;
+    cout << "You:" << input<<flush;
     m1.unlock();
 }

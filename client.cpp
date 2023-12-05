@@ -20,21 +20,44 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
 
-#include <iostream>
-#include <winsock2.h>
+#include "./service/service.hpp"
+#include "./caching/caching.hpp"
+
+
+#ifdef _WIN32
 #include <ws2tcpip.h>
-#include <string.h>
-#include <thread>
-#include <mutex>
 #include <conio.h>
-#include ".\service\service.hpp"
-#include ".\caching\caching.hpp"
+//#pragma comment(lib, "ws2_32.lib")  // Link with ws2_32.lib
+
+#define _CLOSE_SOCKET closesocket
+#define _SOCKET_INV INVALID_SOCKET
+#define _SOCKET_ERR SOCKET_ERROR
+#define _CLEAR "cls"
+#else
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#define _CLOSE_SOCKET close
+#define _SOCKET_INV errno
+#define _SOCKET_ERR errno
+#define _CLEAR "clear"
+#endif
+
+
+#include <thread>
 #define FAILED_TO_CONNECT 404
 
-SOCKET local_socket;
+_SOCKET local_socket;
 sockaddr_in server_socket_addr;
-WSADATA wsadata;
-WORD versionRequested = MAKEWORD(2, 2);
+
+#ifdef _WIN32
+    WSADATA wsadata;
+    WORD versionRequested = MAKEWORD(2, 2);
+#endif
+
 srv::message ownmessage;
 
 condition_variable cv_print_message;
@@ -122,6 +145,8 @@ int main(int argc, char *argv[])
         input = "";
         cout << "\033[s";
 
+        cin.clear();
+
         while (!message_is_ready())
         {
         }
@@ -133,7 +158,7 @@ int main(int argc, char *argv[])
             if (input == "quit")
             {
                 serverconnect = srv::DISCONNECT;
-                closesocket(local_socket);
+                _CLOSE_SOCKET(local_socket);
                 m1.unlock();
 
                 string full_chat;
@@ -173,30 +198,40 @@ int main(int argc, char *argv[])
         cout << "\nYou:";
     } while (1);
 
+    #ifdef _WIN32
     WSACleanup();
+    #endif
 }
 
 int try_connection(in_addr ip_address, u_short port)
 {
+    #ifdef _WIN32
     if (int result = WSAStartup(versionRequested, &wsadata))
     {
         cout << "Error during set-up: " << result << endl;
     }
+    #endif
 
     local_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-    if (local_socket == INVALID_SOCKET)
+    if (local_socket == _SOCKET_INV)
     {
+        #ifdef _WIN32
         cout << "Error at socket(): " << WSAGetLastError() << endl;
+        #else
+        cout << "Error at socket(), exit code: "<< local_socket << endl;
+        #endif
     }
 
     server_socket_addr.sin_family = AF_INET;
     server_socket_addr.sin_port = htons(port);
     server_socket_addr.sin_addr = ip_address;
 
-    if (connect(local_socket, (sockaddr *)&server_socket_addr, sizeof(server_socket_addr)) == SOCKET_ERROR)
+    if (connect(local_socket, (sockaddr *)&server_socket_addr, sizeof(server_socket_addr)) == _SOCKET_ERR)
     {
+        #ifdef _WIN32
         WSACleanup();
+        #endif
         return FAILED_TO_CONNECT;
     }
 
@@ -205,6 +240,7 @@ int try_connection(in_addr ip_address, u_short port)
     return 1;
 }
 
+#ifdef _WIN32
 bool message_is_ready()
 {
     char ch = 0;
@@ -228,6 +264,43 @@ bool message_is_ready()
 
     return false;
 }
+#else
+bool message_is_ready()
+{
+    char ch = 0;
+
+    struct termios oldt, newt;
+
+    // Save current terminal settings
+    tcgetattr(STDIN_FILENO, &oldt);
+
+    // Set terminal to non-blocking mode
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+    // Attempt to read a character
+    while ((ch = getchar()) == EOF)
+    {
+    }
+
+    if (ch == '\n')
+        return true;
+
+    if ((ch != '\b') && (input.length() < BUFSIZE - (username.size() + 3))) // 3 is the size of ":"+"\n"+"\0"
+        input += ch;
+
+    if ((ch == '\b') && (input.size() > 0))
+        input.pop_back();
+
+    cout << "\033[u\033[J" << input;
+
+    // Restore old terminal settings
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+
+    return false;
+}
+#endif
 
 void send_auth()
 {
@@ -262,9 +335,9 @@ void handle_new_user()
     do
     {
         username = "";
-        system("cls");
+        system(_CLEAR);
         cout << "\033[38;2;255;255;0mFIRST ACCESS\033[0m\n";
         cout << "Enter your name(MAX 15 character):";
-        cin >> username;
+        getline(cin,username);
     } while (username.length() > 15 && username.length() > 0);
 }
