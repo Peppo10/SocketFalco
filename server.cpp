@@ -23,16 +23,16 @@ SOFTWARE.*/
 #include "./service/service.hpp"
 #include "./caching/caching.hpp"
 
-
 #ifdef _WIN32
 #include <ws2tcpip.h>
 #include <conio.h>
-//#pragma comment(lib, "ws2_32.lib")  // Link with ws2_32.lib
+// #pragma comment(lib, "ws2_32.lib")  // Link with ws2_32.lib
 
 #define _CLOSE_SOCKET closesocket
 #define _SOCKET_INV INVALID_SOCKET
 #define _SOCKET_ERR SOCKET_ERROR
 #define _CLEAR "cls"
+typedef int _ADDR_LEN;
 #else
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -44,21 +44,21 @@ SOFTWARE.*/
 #define _SOCKET_INV errno
 #define _SOCKET_ERR errno
 #define _CLEAR "clear"
+typedef u_int _ADDR_LEN;
 #endif
 
 #include <thread>
 #define PORT 30000
 
 _SOCKET serverSocket, acceptedSocket; // socket
-sockaddr_in service;                 // socket address for server socket
-sockaddr_in client_addr;             // socket address client side
-u_int client_addr_len = sizeof(sockaddr_in);
+sockaddr_in service;                  // socket address for server socket
+sockaddr_in client_addr;              // socket address client side
+_ADDR_LEN client_addr_len = sizeof(sockaddr_in);
 
 #ifdef _WIN32
-    WSADATA wsadata;
-    WORD versionRequested = MAKEWORD(2, 2);
+WSADATA wsadata;
+WORD versionRequested = MAKEWORD(2, 2);
 #endif
-
 
 srv::message ownmessage;
 
@@ -105,7 +105,8 @@ int main()
         }
         else
         {
-            #ifdef _WIN32
+
+#ifdef _WIN32
             cout << "Connection established! with "
                  << int(client_addr.sin_addr.S_un.S_un_b.s_b1)
                  << "."
@@ -114,9 +115,10 @@ int main()
                  << int(client_addr.sin_addr.S_un.S_un_b.s_b3)
                  << "."
                  << int(client_addr.sin_addr.S_un.S_un_b.s_b4) << endl;
-            #endif
+#else
             cout << "Connection established! with "
                  << int(client_addr.sin_addr.s_addr) << endl;
+#endif
 
             clientconnect = srv::CONNECT;
         }
@@ -195,17 +197,17 @@ int main()
         system(_CLEAR);
         cout << "listening on port " << PORT << "..." << endl;
     }
-    
-    #ifdef _WIN32
-        WSACleanup();
-    #endif
+
+#ifdef _WIN32
+    WSACleanup();
+#endif
 
     return 0;
 }
 
 int setup_server(int port)
 {
-    #ifdef _WIN32
+#ifdef _WIN32
     if (WSAStartup(versionRequested, &wsadata))
     {
         cout << "dll file not found" << endl;
@@ -216,17 +218,17 @@ int setup_server(int port)
         cout << "dll file found!" << endl;
         cout << wsadata.szSystemStatus << endl;
     }
-    #endif
+#endif
 
     serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
     if (serverSocket == _SOCKET_INV)
     {
-        #ifdef _WIN32
+#ifdef _WIN32
         cout << "Error at socket(): " << WSAGetLastError() << endl;
-        #else
-        cout << "Error at socket(), exit code: "<< _SOCKET_INV << endl;
-        #endif
+#else
+        cout << "Error at socket(), exit code: " << _SOCKET_INV << endl;
+#endif
 
         return -2;
     }
@@ -241,17 +243,17 @@ int setup_server(int port)
 
     if (bind(serverSocket, (sockaddr *)&service, sizeof(service)) == _SOCKET_ERR)
     {
-        #ifdef _WIN32
+#ifdef _WIN32
         cout << "bind() failed! " << WSAGetLastError() << endl;
-        #else
+#else
         cout << "bind() failed!, exit code: " << _SOCKET_ERR << endl;
-        #endif
+#endif
 
         _CLOSE_SOCKET(serverSocket);
-        
-        #ifdef _WIN32
+
+#ifdef _WIN32
         WSACleanup();
-        #endif
+#endif
 
         return -3;
     }
