@@ -51,7 +51,7 @@ typedef char _PATH_CHAR;
 namespace clca
 {
     _PATH_CHAR path[_MAX_PATH];
-    _PATH_CHAR *path_ref;
+    _PATH_CHAR *path_ref=NULL;
     fstream chatcache;
     int dirtyflag;
 
@@ -67,16 +67,18 @@ namespace clca
         else
         {
         #else
-        path_ref = getenv("XDG_DATA_HOME");
+        if(path_ref== NULL){
+            path_ref = getenv("XDG_DATA_HOME");
 
-        if(path_ref== NULL || path_ref[0]=='\0'){ //XDG_DATA_HOME not set
-            path_ref = getenv("HOME"); 
+            if(path_ref== NULL || path_ref[0]=='\0'){ //XDG_DATA_HOME not set
+                path_ref = getenv("HOME"); 
 
-            if(path_ref== NULL || path_ref[0]=='\0'){ //HOME not set
-                path_ref="/tmp";
-            }
-            else{
-                strcat(path_ref,"/.local/share");
+                if(path_ref== NULL || path_ref[0]=='\0'){ //HOME not set
+                    path_ref="/tmp";
+                }
+                else{
+                    strcat(path_ref,"/.local/share");
+                }
             }
         }
         #endif

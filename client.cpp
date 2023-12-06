@@ -41,8 +41,8 @@ SOFTWARE.*/
 #include <unistd.h>
 
 #define _CLOSE_SOCKET close
-#define _SOCKET_INV errno
-#define _SOCKET_ERR errno
+#define _SOCKET_INV -1
+#define _SOCKET_ERR -1
 #define _CLEAR "clear"
 #endif
 

@@ -138,7 +138,7 @@ void srv::handle_new_messages(char newmessages[BUFSIZE], bool &notified, string 
     my_new_messages += newmessages;
     cout << NEW_MESSAGES;
     cout << newmessages;
-    cout << "You:"<<flush;
+    cout << "You:\033[s"<<flush;
 
     notified = true;
 
@@ -150,7 +150,7 @@ void srv::handle_message(char newmessages[BUFSIZE], string chatbuffer, string &m
 {
     my_new_messages += newmessages;
     cout << "\033[G\033[K" << newmessages;
-    cout << "You:" << input<<flush;
+    cout << "You:\033[s" << input<<flush;
     m1.unlock();
 }
 
@@ -159,6 +159,6 @@ void srv::handle_disconnect_message(string chatbuffer, string &my_new_messages, 
     my_new_messages += message;
     connection_flag = DISCONNECT;
     cout << "\033[G\033[K" << message;
-    cout << "You:" << input<<flush;
+    cout << "You:\033[s" << input<<flush;
     m1.unlock();
 }

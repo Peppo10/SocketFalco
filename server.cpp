@@ -41,8 +41,8 @@ typedef int _ADDR_LEN;
 #include <unistd.h>
 
 #define _CLOSE_SOCKET close
-#define _SOCKET_INV errno
-#define _SOCKET_ERR errno
+#define _SOCKET_INV -1
+#define _SOCKET_ERR -1
 #define _CLEAR "clear"
 typedef u_int _ADDR_LEN;
 #endif
@@ -149,6 +149,8 @@ int main()
         {
             input = "";
             cout << "\033[s";
+            
+            cin.clear();
 
             while (!message_is_ready())
             {
