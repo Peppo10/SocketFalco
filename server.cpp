@@ -60,8 +60,6 @@ WSADATA wsadata;
 WORD versionRequested = MAKEWORD(2, 2);
 #endif
 
-srv::message ownmessage;
-
 condition_variable cv_load_chat;
 mutex m1;
 
@@ -78,8 +76,6 @@ int dirtyclient;
 bool notified;
 
 int setup_server(int port);
-
-bool message_is_ready();
 
 void send_auth();
 
@@ -152,7 +148,7 @@ int main()
 
             cin.clear();
 
-            while (!message_is_ready())
+            while (!msg::message_is_ready(input, username))
             {
             }
 
@@ -184,9 +180,9 @@ int main()
 
                 if (clientconnect == srv::CONNECT)
                 {
-                    ownmessage.type = srv::MESSAGE;
-                    strcpy(ownmessage.text, owntext);
-                    send(acceptedSocket, (char *)&ownmessage, sizeof(ownmessage), 0);
+                    msg::Message ownmessage(msg::Message::Type::MESSAGE);
+                    ownmessage.appendText(owntext);
+                    ownmessage._send(acceptedSocket);
                 }
             }
 
@@ -277,68 +273,6 @@ int setup_server(int port)
     return 0;
 }
 
-#ifdef _WIN32
-bool message_is_ready()
-{
-    char ch = 0;
-
-    while (!_kbhit())
-    {
-    }
-
-    ch = _getch();
-
-    if (ch == '\r')
-        return true;
-
-    if ((ch != '\b') && (input.length() < BUFSIZE - (username.size() + 3))) // 3 is the size of ":"+"\n"+"\0"
-        input += ch;
-
-    if ((ch == '\b') && (input.size() > 0))
-        input.pop_back();
-
-    cout << "\033[u\033[J" << input;
-
-    return false;
-}
-#elif __linux__
-bool message_is_ready()
-{
-    char ch = 0;
-
-    struct termios oldt, newt;
-
-    // Save current terminal settings
-    tcgetattr(STDIN_FILENO, &oldt);
-
-    // Set terminal to non-blocking mode
-    newt = oldt;
-    newt.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-
-    // Attempt to read a character
-    while ((ch = getchar()) == EOF)
-    {
-    }
-
-    if (ch == '\n')
-        return true;
-
-    if ((ch != '\b') && (input.length() < BUFSIZE - (username.size() + 3))) // 3 is the size of ":"+"\n"+"\0"
-        input += ch;
-
-    if ((ch == '\b') && (input.size() > 0))
-        input.pop_back();
-
-    cout << "\033[u\033[J" << input;
-
-    // Restore old terminal settings
-    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-
-    return false;
-}
-#endif
-
 void send_auth()
 {
     string auth;
@@ -358,16 +292,16 @@ void send_auth()
         break;
     }
 
-    ownmessage.type = srv::AUTH;
-    strcpy(ownmessage.text, auth.c_str());
-    send(acceptedSocket, (char *)&ownmessage, sizeof(ownmessage), 0);
+    msg::Message ownmessage(msg::Message::Type::AUTH);
+    ownmessage.appendText(auth.c_str());
+    ownmessage._send(acceptedSocket);
 }
 
 void send_new_message()
 {
-    ownmessage.type = srv::NEW_MESSAGE;
-    strcpy(ownmessage.text, newmessages_for_client.c_str());
-    send(acceptedSocket, (char *)&ownmessage, sizeof(ownmessage), 0);
+    msg::Message ownmessage(msg::Message::Type::NEW_MESSAGE);
+    ownmessage.appendText(newmessages_for_client.c_str());
+    ownmessage._send(acceptedSocket);
 
     newmessages_for_client = "";
 }

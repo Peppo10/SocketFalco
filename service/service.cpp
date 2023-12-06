@@ -28,10 +28,10 @@ char NEW_MESSAGES[] = "\033[38;2;255;255;0mNew messages!\033[0m\n";
 
 void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag, const string chatbuffer, string &my_new_messages, mutex &m1, string &servername, condition_variable &cv, bool &notified, string &input)
 {
-    message servermessage;
     while (1)
     {
-        int result = recv(local_socket, (char *)&servermessage, sizeof(servermessage), 0);
+        msg::Message servermessage;
+        int result = recv(local_socket, (char *)&(servermessage.data), sizeof(msg::Message::Data), 0);
 
         m1.lock();
 
@@ -43,24 +43,23 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
 
         if (result > 0)
         {
-            switch (servermessage.type)
+            switch (servermessage.data.type)
             {
-            case AUTH:
-                cout << servermessage.text;
+            case msg::Message::Type::AUTH:
+                cout << servermessage.getContent();
 
-                if (strcmp(servermessage.text, "\033[38;2;0;255;0mUser authenticated, loading the chat with \033[4mnew messages!\033[0m\n") == 0)
+                if (strcmp(servermessage.getContent(), "\033[38;2;0;255;0mUser authenticated, loading the chat with \033[4mnew messages!\033[0m\n") == 0)
                     connection_flag = CONNECT_WITH_NEW_MESSAGE;
 
-                strcpy(servermessage.text, "");
                 notified = true;
                 cv.notify_one();
                 m1.unlock();
                 break;
-            case MESSAGE:
-                handle_message(servermessage.text, chatbuffer, my_new_messages, m1, input);
+            case msg::Message::Type::MESSAGE:
+                handle_message(servermessage.getContent(), chatbuffer, my_new_messages, m1, input);
                 break;
-            case NEW_MESSAGE:
-                handle_new_messages(servermessage.text, notified, chatbuffer, my_new_messages, cv, m1);
+            case msg::Message::Type::NEW_MESSAGE:
+                handle_new_messages(servermessage.getContent(), notified, chatbuffer, my_new_messages, cv, m1);
                 break;
             }
         }
@@ -70,16 +69,16 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
             break;
         }
 
-        memset(servermessage.text, 0, BUFSIZE);
+        memset(servermessage.getContent(), 0, BUFSIZE);
     }
 }
 
 void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_flag, string &chatbuffer, string &my_new_messages, mutex &m1, string &clientname, condition_variable &cv, bool &notified, string &input)
 {
-    message clientmessage;
     while (1)
     {
-        int result = recv(acceptedSocket, (char *)&clientmessage, sizeof(clientmessage), 0);
+        msg::Message clientmessage;
+        int result = recv(acceptedSocket, (char *)&(clientmessage.data), sizeof(msg::Message::Data), 0);
 
         m1.lock();
 
@@ -91,25 +90,23 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
 
         if (result > 0)
         {
-            switch (clientmessage.type)
+            switch (clientmessage.data.type)
             {
-            case AUTH:
-                clientname = strtok(clientmessage.text, "-");
+            case msg::Message::Type::AUTH:
+                clientname = strtok(clientmessage.getContent(), "-");
                 if (strtok(NULL, "-") != nullptr)
                 {
                     connection_flag = CONNECT_WITH_NEW_MESSAGE;
                 }
 
-                strcpy(clientmessage.text, "");
-
                 cv.notify_one();
                 m1.unlock();
                 break;
-            case MESSAGE:
-                handle_message(clientmessage.text, chatbuffer, my_new_messages, m1, input);
+            case msg::Message::Type::MESSAGE:
+                handle_message(clientmessage.getContent(), chatbuffer, my_new_messages, m1, input);
                 break;
-            case NEW_MESSAGE:
-                handle_new_messages(clientmessage.text, notified, chatbuffer, my_new_messages, cv, m1);
+            case msg::Message::Type::NEW_MESSAGE:
+                handle_new_messages(clientmessage.getContent(), notified, chatbuffer, my_new_messages, cv, m1);
                 break;
             }
         }
@@ -118,7 +115,7 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
             handle_disconnect_message(chatbuffer, my_new_messages, m1, input, connection_flag, CLIENT_DISCONNECT);
             break;
         }
-        memset(clientmessage.text, 0, BUFSIZE);
+        memset(clientmessage.getContent(), 0, BUFSIZE);
     }
 }
 
@@ -138,7 +135,7 @@ void srv::handle_new_messages(char newmessages[BUFSIZE], bool &notified, string 
     my_new_messages += newmessages;
     cout << NEW_MESSAGES;
     cout << newmessages;
-    cout << "You:\033[s"<<flush;
+    cout << "You:\033[s" << flush;
 
     notified = true;
 
@@ -150,7 +147,7 @@ void srv::handle_message(char newmessages[BUFSIZE], string chatbuffer, string &m
 {
     my_new_messages += newmessages;
     cout << "\033[G\033[K" << newmessages;
-    cout << "You:\033[s" << input<<flush;
+    cout << "You:\033[s" << input << flush;
     m1.unlock();
 }
 
@@ -159,6 +156,6 @@ void srv::handle_disconnect_message(string chatbuffer, string &my_new_messages, 
     my_new_messages += message;
     connection_flag = DISCONNECT;
     cout << "\033[G\033[K" << message;
-    cout << "You:\033[s" << input<<flush;
+    cout << "You:\033[s" << input << flush;
     m1.unlock();
 }

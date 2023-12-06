@@ -25,7 +25,6 @@ SOFTWARE.*/
 
 #ifdef _WIN32
 #include <ws2tcpip.h>
-#include <conio.h>
 // #pragma comment(lib, "ws2_32.lib")  // Link with ws2_32.lib
 
 #define _CLOSE_SOCKET closesocket
@@ -35,9 +34,6 @@ SOFTWARE.*/
 #elif __linux__
 #include <arpa/inet.h>
 #include <sys/types.h>
-#include <termios.h>
-#include <fcntl.h>
-#include <unistd.h>
 
 #define _CLOSE_SOCKET close
 #define _SOCKET_INV -1
@@ -56,8 +52,6 @@ WSADATA wsadata;
 WORD versionRequested = MAKEWORD(2, 2);
 #endif
 
-srv::message ownmessage;
-
 condition_variable cv_print_message;
 mutex m1;
 
@@ -74,8 +68,6 @@ int serverconnect = srv::DISCONNECT, dirtyflag;
 bool notified;
 
 int try_connection(in_addr, u_short);
-
-bool message_is_ready();
 
 void send_auth();
 
@@ -145,7 +137,7 @@ int main(int argc, char *argv[])
 
         cin.clear();
 
-        while (!message_is_ready())
+        while (!msg::message_is_ready(input, username))
         {
         }
 
@@ -184,9 +176,9 @@ int main(int argc, char *argv[])
 
             if (serverconnect == srv::CONNECT)
             {
-                ownmessage.type = srv::MESSAGE;
-                strcpy(ownmessage.text, owntext);
-                send(local_socket, (char *)&ownmessage, sizeof(ownmessage), 0);
+                msg::Message ownmessage(msg::Message::Type::MESSAGE);
+                ownmessage.appendText(owntext);
+                ownmessage._send(local_socket);
             }
         }
 
@@ -238,85 +230,24 @@ int try_connection(in_addr ip_address, u_short port)
     return 1;
 }
 
-#ifdef _WIN32
-bool message_is_ready()
-{
-    char ch = 0;
-
-    while (!_kbhit())
-    {
-    }
-
-    ch = _getch();
-
-    if (ch == '\r')
-        return true;
-
-    if ((ch != '\b') && (input.length() < BUFSIZE - (username.size() + 3))) // 3 is the size of ":"+"\n"+"\0"
-        input += ch;
-
-    if ((ch == '\b') && (input.size() > 0))
-        input.pop_back();
-
-    cout << "\033[u\033[J" << input;
-
-    return false;
-}
-#elif __linux__
-bool message_is_ready()
-{
-    char ch = 0;
-
-    struct termios oldt, newt;
-
-    // Save current terminal settings
-    tcgetattr(STDIN_FILENO, &oldt);
-
-    // Set terminal to non-blocking mode
-    newt = oldt;
-    newt.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-
-    // Attempt to read a character
-    while ((ch = getchar()) == EOF)
-    {
-    }
-
-    if (ch == '\n')
-        return true;
-
-    if ((ch != '\b') && (input.length() < BUFSIZE - (username.size() + 3))) // 3 is the size of ":"+"\n"+"\0"
-        input += ch;
-
-    if ((ch == '\b') && (input.size() > 0))
-        input.pop_back();
-
-    cout << "\033[u\033[J" << input;
-
-    // Restore old terminal settings
-    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-
-    return false;
-}
-#endif
-
 void send_auth()
 {
-    ownmessage.type = srv::AUTH;
-    strcpy(ownmessage.text, username.c_str());
-    strcat(ownmessage.text, "-");
+    msg::Message ownmessage(msg::Message::Type::AUTH);
+    ownmessage.appendText(owntext);
+    ownmessage.appendText(username.c_str());
+    ownmessage.appendText("-");
 
     if (dirtyflag == FILE_EXIST__NEW_MESSAGE)
-        strcat(ownmessage.text, "new");
+        ownmessage.appendText("new");
 
-    send(local_socket, (char *)&ownmessage, sizeof(ownmessage), 0);
+    ownmessage._send(local_socket);
 }
 
 void send_new_message()
 {
-    ownmessage.type = srv::NEW_MESSAGE;
-    strcpy(ownmessage.text, newmessages_for_server.c_str());
-    send(local_socket, (char *)&ownmessage, sizeof(ownmessage), 0);
+    msg::Message ownmessage(msg::Message::Type::NEW_MESSAGE);
+    ownmessage.appendText(newmessages_for_server.c_str());
+    ownmessage._send(local_socket);
 }
 
 void wait_server()

@@ -27,14 +27,14 @@ SOFTWARE.*/
 
 #ifdef _WIN32
 #include <shlobj.h>
-#define _MAX_PATH MAX_PATH
+#define __MAX_PATH MAX_PATH
 #define _STR_COPY wcscpy
 #define _STR_LEN wcslen
 #define _STR_CAT wcscat
 typedef wchar_t _PATH_CHAR;
 #elif __linux
 #include <limits.h>
-#define _MAX_PATH PATH_MAX
+#define __MAX_PATH PATH_MAX
 #define _STR_COPY strcpy
 #define _STR_LEN strlen
 #define _STR_CAT strcat
@@ -48,7 +48,7 @@ typedef char _PATH_CHAR;
 
 namespace clca
 {
-    _PATH_CHAR path[_MAX_PATH];
+    _PATH_CHAR path[__MAX_PATH];
     _PATH_CHAR *path_ref = NULL;
     fstream chatcache;
     int dirtyflag;
