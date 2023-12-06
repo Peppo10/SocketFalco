@@ -1,4 +1,4 @@
-# socket-realtime-cached-chat
+# Socket-realtime-cached-chat
 This is a realtime chat that uses Win/Linux api to manage sockets and create tcp connection between server and client. Also implements a caching system that save the messages between two peers.
 
 You have the possibility also to write message in offline mode(from client side) or from server side(when the client quit the session). When the connection is re-established the peers will send the new messages each other.
