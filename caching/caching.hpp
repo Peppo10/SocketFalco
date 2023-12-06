@@ -32,9 +32,7 @@ SOFTWARE.*/
 #define _STR_LEN wcslen
 #define _STR_CAT wcscat
 typedef wchar_t _PATH_CHAR;
-
-#else
-
+#elif __linux
 #include <limits.h>
 #define _MAX_PATH PATH_MAX
 #define _STR_COPY strcpy
@@ -51,13 +49,13 @@ typedef char _PATH_CHAR;
 namespace clca
 {
     _PATH_CHAR path[_MAX_PATH];
-    _PATH_CHAR *path_ref=NULL;
+    _PATH_CHAR *path_ref = NULL;
     fstream chatcache;
     int dirtyflag;
 
     int load_chat(string &chatbuffer, string &newmessages_for_sending, string &newmessages, const char *foldername, const char *filename, string &myname)
     {
-        #ifdef _WIN32
+#ifdef _WIN32
         if (!SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppDataLow, 0, NULL, &path_ref)))
         { // get /user/appdata/localLow folder
             cout << "Directory not found!";
@@ -66,22 +64,26 @@ namespace clca
         }
         else
         {
-        #else
-        if(path_ref== NULL){
+#elif __linux__
+        if (path_ref == NULL)
+        {
             path_ref = getenv("XDG_DATA_HOME");
 
-            if(path_ref== NULL || path_ref[0]=='\0'){ //XDG_DATA_HOME not set
-                path_ref = getenv("HOME"); 
+            if (path_ref == NULL || path_ref[0] == '\0')
+            { // XDG_DATA_HOME not set
+                path_ref = getenv("HOME");
 
-                if(path_ref== NULL || path_ref[0]=='\0'){ //HOME not set
-                    path_ref="/tmp";
+                if (path_ref == NULL || path_ref[0] == '\0')
+                { // HOME not set
+                    path_ref = "/tmp";
                 }
-                else{
-                    strcat(path_ref,"/.local/share");
+                else
+                {
+                    strcat(path_ref, "/.local/share");
                 }
             }
         }
-        #endif
+#endif
             _STR_COPY(path, path_ref);
             for (size_t i = 0; i < _STR_LEN(path); i++)
             { // switch \ to / because C:\..\..\.. is invalis path
@@ -93,11 +95,11 @@ namespace clca
 
             _PATH_CHAR *wc = new _PATH_CHAR[strlen(foldername) + 1];
 
-            #ifdef _WIN32
-                mbstowcs(wc, foldername, strlen(foldername) + 1);
-            #else
-                _STR_COPY(wc,foldername);
-            #endif
+#ifdef _WIN32
+            mbstowcs(wc, foldername, strlen(foldername) + 1);
+#elif __linux__
+        _STR_COPY(wc, foldername);
+#endif
 
             _STR_CAT(path, wc);
 
@@ -114,13 +116,13 @@ namespace clca
             }
 
             wc = new _PATH_CHAR[strlen(filename) + 1];
-            
-            #ifdef _WIN32
+
+#ifdef _WIN32
             mbstowcs(wc, filename, strlen(filename) + 1);
-            #else
-            _STR_COPY(wc,filename);
-            #endif
-            
+#elif __linux__
+        _STR_COPY(wc, filename);
+#endif
+
             _STR_CAT(path, wc);
 
             if (!(chatcache = fstream(path)))
@@ -162,9 +164,9 @@ namespace clca
             }
             chatcache.close();
             chatcache.clear();
-        #ifdef _WIN32
+#ifdef _WIN32
         }
-        #endif
+#endif
 
         return dirtyflag;
     }

@@ -23,17 +23,16 @@ SOFTWARE.*/
 #include "./service/service.hpp"
 #include "./caching/caching.hpp"
 
-
 #ifdef _WIN32
 #include <ws2tcpip.h>
 #include <conio.h>
-//#pragma comment(lib, "ws2_32.lib")  // Link with ws2_32.lib
+// #pragma comment(lib, "ws2_32.lib")  // Link with ws2_32.lib
 
 #define _CLOSE_SOCKET closesocket
 #define _SOCKET_INV INVALID_SOCKET
 #define _SOCKET_ERR SOCKET_ERROR
 #define _CLEAR "cls"
-#else
+#elif __linux__
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <termios.h>
@@ -46,7 +45,6 @@ SOFTWARE.*/
 #define _CLEAR "clear"
 #endif
 
-
 #include <thread>
 #define FAILED_TO_CONNECT 404
 
@@ -54,8 +52,8 @@ _SOCKET local_socket;
 sockaddr_in server_socket_addr;
 
 #ifdef _WIN32
-    WSADATA wsadata;
-    WORD versionRequested = MAKEWORD(2, 2);
+WSADATA wsadata;
+WORD versionRequested = MAKEWORD(2, 2);
 #endif
 
 srv::message ownmessage;
@@ -198,29 +196,29 @@ int main(int argc, char *argv[])
         cout << "\nYou:";
     } while (1);
 
-    #ifdef _WIN32
+#ifdef _WIN32
     WSACleanup();
-    #endif
+#endif
 }
 
 int try_connection(in_addr ip_address, u_short port)
 {
-    #ifdef _WIN32
+#ifdef _WIN32
     if (int result = WSAStartup(versionRequested, &wsadata))
     {
         cout << "Error during set-up: " << result << endl;
     }
-    #endif
+#endif
 
     local_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
     if (local_socket == _SOCKET_INV)
     {
-        #ifdef _WIN32
+#ifdef _WIN32
         cout << "Error at socket(): " << WSAGetLastError() << endl;
-        #else
-        cout << "Error at socket(), exit code: "<< local_socket << endl;
-        #endif
+#elif __linux__
+        cout << "Error at socket(), exit code: " << local_socket << endl;
+#endif
     }
 
     server_socket_addr.sin_family = AF_INET;
@@ -229,9 +227,9 @@ int try_connection(in_addr ip_address, u_short port)
 
     if (connect(local_socket, (sockaddr *)&server_socket_addr, sizeof(server_socket_addr)) == _SOCKET_ERR)
     {
-        #ifdef _WIN32
+#ifdef _WIN32
         WSACleanup();
-        #endif
+#endif
         return FAILED_TO_CONNECT;
     }
 
@@ -264,7 +262,7 @@ bool message_is_ready()
 
     return false;
 }
-#else
+#elif __linux__
 bool message_is_ready()
 {
     char ch = 0;
@@ -338,6 +336,6 @@ void handle_new_user()
         system(_CLEAR);
         cout << "\033[38;2;255;255;0mFIRST ACCESS\033[0m\n";
         cout << "Enter your name(MAX 15 character):";
-        getline(cin,username);
+        getline(cin, username);
     } while (username.length() > 15 && username.length() > 0);
 }

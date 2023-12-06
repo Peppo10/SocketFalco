@@ -27,7 +27,7 @@ SOFTWARE.*/
 #ifdef _WIN32
 #include <winsock2.h>
 typedef SOCKET _SOCKET;
-#else
+#elif __linux__
 #include <sys/socket.h>
 typedef int _SOCKET;
 #endif

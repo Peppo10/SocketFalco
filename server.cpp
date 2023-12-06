@@ -33,7 +33,7 @@ SOFTWARE.*/
 #define _SOCKET_ERR SOCKET_ERROR
 #define _CLEAR "cls"
 typedef int _ADDR_LEN;
-#else
+#elif __linux__
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <termios.h>
@@ -115,7 +115,7 @@ int main()
                  << int(client_addr.sin_addr.S_un.S_un_b.s_b3)
                  << "."
                  << int(client_addr.sin_addr.S_un.S_un_b.s_b4) << endl;
-#else
+#elif __linux__
             cout << "Connection established! with "
                  << int(client_addr.sin_addr.s_addr) << endl;
 #endif
@@ -149,7 +149,7 @@ int main()
         {
             input = "";
             cout << "\033[s";
-            
+
             cin.clear();
 
             while (!message_is_ready())
@@ -228,7 +228,7 @@ int setup_server(int port)
     {
 #ifdef _WIN32
         cout << "Error at socket(): " << WSAGetLastError() << endl;
-#else
+#elif __linux__
         cout << "Error at socket(), exit code: " << _SOCKET_INV << endl;
 #endif
 
@@ -247,7 +247,7 @@ int setup_server(int port)
     {
 #ifdef _WIN32
         cout << "bind() failed! " << WSAGetLastError() << endl;
-#else
+#elif __linux__
         cout << "bind() failed!, exit code: " << _SOCKET_ERR << endl;
 #endif
 
@@ -301,7 +301,7 @@ bool message_is_ready()
 
     return false;
 }
-#else
+#elif __linux__
 bool message_is_ready()
 {
     char ch = 0;
