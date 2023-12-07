@@ -31,7 +31,7 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
     while (1)
     {
         msg::Message servermessage;
-        int result = recv(local_socket, (char *)&(servermessage.data), sizeof(msg::Message::Data), 0);
+        int result = recv(local_socket, (char *)&(servermessage), sizeof(msg::Message), 0);
 
         m1.lock();
 
@@ -43,7 +43,7 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
 
         if (result > 0)
         {
-            switch (servermessage.data.type)
+            switch (servermessage.type)
             {
             case msg::Message::Type::AUTH:
                 cout << servermessage.getContent();
@@ -78,7 +78,7 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
     while (1)
     {
         msg::Message clientmessage;
-        int result = recv(acceptedSocket, (char *)&(clientmessage.data), sizeof(msg::Message::Data), 0);
+        int result = recv(acceptedSocket, (char *)&(clientmessage), sizeof(msg::Message), 0);
 
         m1.lock();
 
@@ -90,7 +90,7 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
 
         if (result > 0)
         {
-            switch (clientmessage.data.type)
+            switch (clientmessage.type)
             {
             case msg::Message::Type::AUTH:
                 clientname = strtok(clientmessage.getContent(), "-");

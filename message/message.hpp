@@ -42,6 +42,8 @@ namespace msg
     class Message
     {
     private:
+        char text[BUFSIZE];
+
     public:
         enum Type
         {
@@ -50,31 +52,43 @@ namespace msg
             NEW_MESSAGE
         };
 
-        struct Data
-        {
-            Type type;
-            char text[BUFSIZE];
-        };
-
-        Data data;
+        Type type;
 
         Message(){};
 
-        explicit Message(Type t) : data({.type = t, .text = {0}}){};
+        Message(const Message &other) : type(other.type)
+        {
+            strcpy(this->text, other.text);
+        }
+
+        Message &operator=(const Message &other)
+        {
+            if (&other == this)
+            {
+                return *this;
+            }
+
+            strcpy(this->text, other.text);
+            this->type = other.type;
+
+            return *this;
+        }
+
+        explicit Message(Type t) : text{}, type(t){};
 
         void appendText(const char *message)
         {
-            strcat(this->data.text, message);
+            strcat(this->text, message);
         };
 
         void _send(_SOCKET socket)
         {
-            send(socket, (char *)&(this->data), sizeof(Data), 0);
+            send(socket, (char *)this, sizeof(Message), 0);
         };
 
         char *getContent()
         {
-            return this->data.text;
+            return this->text;
         }
     };
 
