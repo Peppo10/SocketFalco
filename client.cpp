@@ -19,13 +19,8 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
-
-#include "./service/service.hpp"
-#include "./caching/caching.hpp"
-
 #ifdef _WIN32
 #include <ws2tcpip.h>
-// #pragma comment(lib, "ws2_32.lib")  // Link with ws2_32.lib
 
 #define _CLOSE_SOCKET closesocket
 #define _SOCKET_INV INVALID_SOCKET
@@ -42,7 +37,14 @@ SOFTWARE.*/
 #endif
 
 #include <thread>
+#include <iostream>
+#include <string.h>
+#include <condition_variable>
+#include <mutex>
+#include "./service/service.hpp"
 #define FAILED_TO_CONNECT 404
+
+using namespace std;
 
 _SOCKET local_socket;
 sockaddr_in server_socket_addr;
@@ -55,7 +57,7 @@ WORD versionRequested = MAKEWORD(2, 2);
 condition_variable cv_print_message;
 mutex m1;
 
-string chatbuffer = "";
+clca::Chat chat;
 string newmessages = "";
 string newmessages_for_server = "";
 string input = "";
@@ -63,8 +65,7 @@ string username;
 string servername;
 
 int connection_flag;
-char owntext[BUFSIZE] = {0};
-int serverconnect = srv::DISCONNECT, dirtyflag;
+int serverconnect = srv::DISCONNECT, fileflag;
 bool notified;
 
 int try_connection(in_addr, u_short);
@@ -76,6 +77,8 @@ void send_new_message();
 void wait_server();
 
 void handle_new_user();
+
+void prepareCUI();
 
 int main(int argc, char *argv[])
 {
@@ -90,7 +93,7 @@ int main(int argc, char *argv[])
 
     inet_pton(AF_INET, argv[1], &sin_addr);
 
-    if ((dirtyflag = clca::load_chat(chatbuffer, newmessages_for_server, newmessages, "/client_chat_cache", "/cache.txt", username)) == FILE_NOT_ALREADY_EXISTS)
+    if ((fileflag = clca::load_chat(chat, "/client_chat_cache", "/cache.txt", username)) == FILE_NOT_ALREADY_EXISTS)
     {
         handle_new_user();
     }
@@ -108,7 +111,7 @@ int main(int argc, char *argv[])
         notified = false;
 
         // listening thread
-        new thread(srv::client_listen_reicvmessage, local_socket, ref(serverconnect), chatbuffer, ref(newmessages), ref(m1), ref(servername), ref(cv_print_message), ref(notified), ref(input));
+        new thread(srv::client_listen_reicvmessage, local_socket, ref(serverconnect), ref(chat), ref(m1), ref(servername), ref(cv_print_message), ref(notified), ref(input));
 
         // this snippet is thread safe because the server will not send anything until it receive the AUTH message from client
         send_auth();
@@ -119,15 +122,7 @@ int main(int argc, char *argv[])
 
         wait_server();
 
-        if (serverconnect == srv::CONNECT_WITH_NEW_MESSAGE)
-        {
-            serverconnect = srv::CONNECT; // if is connected with new messages from server it prints the chatbuffer in service thread
-        }
-        else
-        { // if is connected without new messages from server it prints the chatbuffer
-            cout << chatbuffer + newmessages;
-            cout << "You:";
-        }
+        prepareCUI();
     }
 
     do
@@ -137,7 +132,7 @@ int main(int argc, char *argv[])
 
         cin.clear();
 
-        while (!msg::message_is_ready(input, username))
+        while (!clca::msg::message_is_ready(input, username))
         {
         }
 
@@ -151,41 +146,28 @@ int main(int argc, char *argv[])
                 _CLOSE_SOCKET(local_socket);
                 m1.unlock();
 
-                string full_chat;
-                if (connection_flag == FAILED_TO_CONNECT)
-                {
-                    full_chat = chatbuffer + "\033[38;2;255;0;0mThe server is disconnected\033[0m\n" + newmessages;
-                    clca::save_chat(full_chat, username);
-                }
-                else
-                {
-                    full_chat = chatbuffer + newmessages;
-                    clca::save_chat(full_chat, username);
-                }
+                clca::save_chat(chat, username);
 
                 return EXIT_SUCCESS;
             }
             else
             {
-                strcat(owntext, username.c_str());
-                strcat(owntext, ":");
-                strcat(owntext, input.c_str());
-                strcat(owntext, "\n");
-                newmessages += ("You:" + input + "\n");
-            }
+                clca::msg::Message ownmessage((connection_flag == FAILED_TO_CONNECT) || (serverconnect != srv::CONNECT) ? clca::msg::Message::Type::NEW_MESSAGE : clca::msg::Message::Type::MESSAGE);
+                ownmessage.setOwner(username.c_str());
+                ownmessage.appendText(input.c_str());
+                chat.addMessage(ownmessage);
+                cout << "\033[G\033[J";
+                ownmessage.print();
 
-            if (serverconnect == srv::CONNECT)
-            {
-                msg::Message ownmessage(msg::Message::Type::MESSAGE);
-                ownmessage.appendText(owntext);
-                ownmessage._send(local_socket);
+                if (serverconnect == srv::CONNECT)
+                {
+                    ownmessage._send(local_socket);
+                }
             }
         }
 
         m1.unlock();
-
-        memset(owntext, 0, BUFSIZE);
-        cout << "\nYou:";
+        cout << "You:";
     } while (1);
 
 #ifdef _WIN32
@@ -232,22 +214,42 @@ int try_connection(in_addr ip_address, u_short port)
 
 void send_auth()
 {
-    msg::Message ownmessage(msg::Message::Type::AUTH);
-    ownmessage.appendText(owntext);
-    ownmessage.appendText(username.c_str());
-    ownmessage.appendText("-");
+    clca::msg::Message ownmessage(clca::msg::Message::Type::AUTH);
+    ownmessage.setOwner(username.c_str());
 
-    if (dirtyflag == FILE_EXIST__NEW_MESSAGE)
-        ownmessage.appendText("new");
+    if (fileflag > 0)
+    {
+        ownmessage.appendText("new-");
+        ownmessage.appendText(to_string(fileflag).c_str());
+    }
 
     ownmessage._send(local_socket);
 }
 
 void send_new_message()
 {
-    msg::Message ownmessage(msg::Message::Type::NEW_MESSAGE);
-    ownmessage.appendText(newmessages_for_server.c_str());
-    ownmessage._send(local_socket);
+    size_t chatSize = chat.getSize();
+    if (fileflag > 0)
+    {
+        for (size_t i = chatSize - fileflag; i < chatSize; i++)
+        {
+            (*chat.getAt(i))._send(local_socket);
+            (*chat.getAt(i)).setType(clca::msg::Message::Type::MESSAGE);
+        }
+    }
+    else
+    {
+        clca::msg::Message ownmessage(clca::msg::Message::Type::NEW_MESSAGE);
+        ownmessage.setOwner(username.c_str());
+        ownmessage.appendText("\0");
+        ownmessage._send(local_socket);
+    }
+}
+
+void prepareCUI()
+{
+    chat.print();
+    cout << "You:";
 }
 
 void wait_server()

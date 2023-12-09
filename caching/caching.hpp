@@ -22,11 +22,13 @@ SOFTWARE.*/
 
 #ifndef CACHING_H
 #define CACHING_H
-#include <filesystem>
-#include <fstream>
 
 #ifdef _WIN32
+#include <winsock2.h>
 #include <shlobj.h>
+#include <ws2tcpip.h>
+#include <conio.h>
+typedef SOCKET _SOCKET;
 #define __MAX_PATH MAX_PATH
 #define _STR_COPY wcscpy
 #define _STR_LEN wcslen
@@ -34,6 +36,11 @@ SOFTWARE.*/
 typedef wchar_t _PATH_CHAR;
 #elif __linux
 #include <limits.h>
+#include <arpa/inet.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <unistd.h>
+typedef SOCKET _SOCKET;
 #define __MAX_PATH PATH_MAX
 #define _STR_COPY strcpy
 #define _STR_LEN strlen
@@ -41,146 +48,110 @@ typedef wchar_t _PATH_CHAR;
 typedef char _PATH_CHAR;
 #endif
 
-#define PATH_NOT_FOUND 1
-#define FILE_ALREADY_EXISTS 2
-#define FILE_NOT_ALREADY_EXISTS 3
-#define FILE_EXIST__NEW_MESSAGE 4
+#include <filesystem>
+#include <fstream>
+#include <list>
+#include <vector>
+#include <iostream>
+#include <string.h>
+#include <sstream>
+
+#define BUFSIZE 264
+#define PATH_NOT_FOUND -1
+#define FILE_ALREADY_EXISTS 0
+#define FILE_NOT_ALREADY_EXISTS -1
+
+using namespace std;
 
 namespace clca
 {
-    _PATH_CHAR path[__MAX_PATH];
-    _PATH_CHAR *path_ref = NULL;
-    fstream chatcache;
-    int dirtyflag;
 
-    int load_chat(string &chatbuffer, string &newmessages_for_sending, string &newmessages, const char *foldername, const char *filename, string &myname)
+    namespace msg
     {
-#ifdef _WIN32
-        if (!SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppDataLow, 0, NULL, &path_ref)))
-        { // get /user/appdata/localLow folder
-            cout << "Directory not found!";
-            system("pause");
-            return PATH_NOT_FOUND;
-        }
-        else
+        class Message
         {
-#elif __linux__
-        if (path_ref == NULL)
-        {
-            path_ref = getenv("XDG_DATA_HOME");
+        protected:
+            char text[BUFSIZE];
 
-            if (path_ref == NULL || path_ref[0] == '\0')
-            { // XDG_DATA_HOME not set
-                path_ref = getenv("HOME");
+            char owner[16];
 
-                if (path_ref == NULL || path_ref[0] == '\0')
-                { // HOME not set
-                    path_ref = "/tmp";
-                }
-                else
-                {
-                    strcat(path_ref, "/.local/share");
-                }
-            }
-        }
-#endif
-            _STR_COPY(path, path_ref);
-            for (size_t i = 0; i < _STR_LEN(path); i++)
-            { // switch \ to / because C:\..\..\.. is invalis path
-                if (path[i] == '\\')
-                {
-                    path[i] = '/';
-                }
-            }
+            time_t timestamp;
 
-            _PATH_CHAR *wc = new _PATH_CHAR[strlen(foldername) + 1];
-
-#ifdef _WIN32
-            mbstowcs(wc, foldername, strlen(foldername) + 1);
-#elif __linux__
-        _STR_COPY(wc, foldername);
-#endif
-
-            _STR_CAT(path, wc);
-
-            try
+        public:
+            enum Type
             {
-                if (std::filesystem::create_directory(path))
-                {
-                    cout << "directory created!";
-                }
-            }
-            catch (std::exception &e)
-            {
-                cout << e.what() << endl;
-            }
+                AUTH,
+                MESSAGE,
+                NEW_MESSAGE
+            };
 
-            wc = new _PATH_CHAR[strlen(filename) + 1];
+            Type type;
 
-#ifdef _WIN32
-            mbstowcs(wc, filename, strlen(filename) + 1);
-#elif __linux__
-        _STR_COPY(wc, filename);
-#endif
+            Message(){};
 
-            _STR_CAT(path, wc);
+            Message(const Message &other);
 
-            if (!(chatcache = fstream(path)))
-            {
-                chatcache.open(path, fstream::in | fstream::out | fstream::trunc);
-                dirtyflag = FILE_NOT_ALREADY_EXISTS;
-            }
-            else
-            {
-                dirtyflag = FILE_ALREADY_EXISTS;
-                string line;
+            explicit Message(Type t);
 
-                getline(chatcache, myname);
+            Message &operator=(const Message &other);
 
-                while (getline(chatcache, line))
-                {
-                    if ((line == "\033[38;2;255;0;0mThe client is disconnected\033[0m") || (line == "\033[38;2;255;0;0mThe server is disconnected\033[0m"))
-                    {
-                        dirtyflag = FILE_EXIST__NEW_MESSAGE;
+            bool operator<(const Message &other) const;
 
-                        continue;
-                    }
+            bool operator==(const Message &other) const;
 
-                    if (dirtyflag == FILE_EXIST__NEW_MESSAGE)
-                    {
-                        newmessages += (line + "\n");
-                        newmessages_for_sending += (myname + ":" + line.substr(4) + "\n");
-                    }
-                    else
-                    {
-                        chatbuffer += (line + "\n");
-                    }
-                }
+            void setOwner(const char *owner);
 
-                if (newmessages == "")
-                {
-                    dirtyflag = FILE_ALREADY_EXISTS;
-                }
-            }
-            chatcache.close();
-            chatcache.clear();
-#ifdef _WIN32
-        }
-#endif
+            char *getOwner();
 
-        return dirtyflag;
+            time_t getTimestamp();
+
+            string getDecodedTimestamp();
+
+            char *getContent();
+
+            Type getType();
+
+            void setType(Type type);
+
+            void setTimestamp(time_t timestamp);
+
+            void appendText(const char *message);
+
+            void _send(_SOCKET socket);
+
+            void print();
+
+            void normalize();
+        };
+
+        bool message_is_ready(string &input, string username);
+
     }
 
-    int save_chat(string &chatbuffer, string username)
+    class Chat
     {
-        chatcache.open(path, fstream::in | fstream::out | fstream::trunc); // TODO created another file every time(it's not good for long chat)
-        chatcache << username + "\n";
-        chatcache << chatbuffer;
-        chatcache.close();
-        chatcache.clear();
+    private:
+        std::list<msg::Message> messages;
 
-        return 1;
-    }
+    public:
+        Chat(){};
+
+        void addMessage(msg::Message msg);
+
+        void removeMessage(msg::Message msg);
+
+        void clear();
+
+        msg::Message *getAt(int index);
+
+        void print();
+
+        int getSize();
+    };
+
+    int load_chat(Chat &chat, const char *foldername, const char *filename, std::string &myname);
+
+    int save_chat(clca::Chat chat, std::string username);
 }
 
 namespace srca

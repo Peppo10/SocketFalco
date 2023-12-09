@@ -26,7 +26,6 @@ SOFTWARE.*/
 #ifdef _WIN32
 #include <ws2tcpip.h>
 #include <conio.h>
-// #pragma comment(lib, "ws2_32.lib")  // Link with ws2_32.lib
 
 #define _CLOSE_SOCKET closesocket
 #define _SOCKET_INV INVALID_SOCKET
@@ -65,11 +64,10 @@ mutex m1;
 
 string username = "Server";
 string clientname = "";
-string chatbuffer = "";
+clca::Chat chat;
 string newmessages = "";
 string newmessages_for_client = "";
 string input = "";
-char owntext[BUFSIZE] = {0};
 
 int clientconnect = srv::DISCONNECT;
 int dirtyclient;
@@ -84,6 +82,8 @@ void send_new_message();
 void wait_client();
 
 void wait_client_auth();
+
+void prepareCUI();
 
 int main()
 {
@@ -121,7 +121,7 @@ int main()
 
         notified = false;
 
-        new thread(srv::server_listen_reicvmessage, acceptedSocket, ref(clientconnect), ref(chatbuffer), ref(newmessages), ref(m1), ref(clientname), ref(cv_load_chat), ref(notified), ref(input));
+        new thread(srv::server_listen_reicvmessage, acceptedSocket, ref(clientconnect), ref(chat), ref(m1), ref(clientname), ref(cv_load_chat), ref(notified), ref(input));
 
         wait_client_auth();
 
@@ -131,15 +131,7 @@ int main()
 
         send_new_message();
 
-        if (clientconnect == srv::CONNECT_WITH_NEW_MESSAGE)
-        {
-            clientconnect = srv::CONNECT;
-        }
-        else
-        { // if is connected without new messages it prints the chatbuffer
-            cout << chatbuffer + newmessages;
-            cout << "You:";
-        }
+        prepareCUI();
 
         do
         {
@@ -148,7 +140,7 @@ int main()
 
             cin.clear();
 
-            while (!msg::message_is_ready(input, username))
+            while (!clca::msg::message_is_ready(input, username))
             {
             }
 
@@ -162,34 +154,31 @@ int main()
                     _CLOSE_SOCKET(acceptedSocket);
                     m1.unlock();
 
-                    string full_chat = chatbuffer + newmessages;
-                    clca::save_chat(full_chat, username);
+                    clca::save_chat(chat, username);
                     clientname = "";
-                    chatbuffer = "";
+                    chat.clear();
                     newmessages = "";
                     break;
                 }
                 else
                 {
-                    strcat(owntext, username.c_str());
-                    strcat(owntext, ":");
-                    strcat(owntext, input.c_str());
-                    strcat(owntext, "\n");
-                    newmessages += ("You:" + input + "\n");
-                }
+                    clca::msg::Message ownmessage((clientconnect != srv::CONNECT) ? clca::msg::Message::Type::NEW_MESSAGE : clca::msg::Message::Type::MESSAGE);
+                    ownmessage.setOwner(username.c_str());
+                    ownmessage.appendText(input.c_str());
+                    chat.addMessage(ownmessage);
+                    cout << "\033[G\033[J";
+                    ownmessage.print();
 
-                if (clientconnect == srv::CONNECT)
-                {
-                    msg::Message ownmessage(msg::Message::Type::MESSAGE);
-                    ownmessage.appendText(owntext);
-                    ownmessage._send(acceptedSocket);
+                    if (clientconnect == srv::CONNECT)
+                    {
+                        ownmessage._send(acceptedSocket);
+                    }
                 }
             }
 
             m1.unlock();
 
-            memset(owntext, 0, BUFSIZE);
-            cout << "\nYou:";
+            cout << "You:";
         } while (1);
 
         system(_CLEAR);
@@ -280,30 +269,48 @@ void send_auth()
     switch (dirtyclient)
     {
     case FILE_ALREADY_EXISTS:
-        auth = "\033[38;2;0;255;0mUser authenticated, loading the chat...\033[0m\n";
-        break;
-
-    case FILE_EXIST__NEW_MESSAGE:
-        auth = "\033[38;2;0;255;0mUser authenticated, loading the chat with \033[4mnew messages!\033[0m\n";
+        auth = "\033[38;2;0;255;0mUser authenticated, loading the chat...\033[0m";
         break;
 
     case FILE_NOT_ALREADY_EXISTS:
-        auth = "\033[38;2;100;100;255mNew user,initialization...\033[0m\n";
+        auth = "\033[38;2;100;100;255mNew user,initialization...\033[0m";
+        break;
+    default:
+        auth = "\033[38;2;0;255;0mUser authenticated, loading the chat with \033[4mnew messages!\033[0m";
         break;
     }
 
-    msg::Message ownmessage(msg::Message::Type::AUTH);
+    clca::msg::Message ownmessage(clca::msg::Message::Type::AUTH);
+    ownmessage.setOwner(username.c_str());
     ownmessage.appendText(auth.c_str());
+
+    if (dirtyclient > 0)
+    {
+        ownmessage.appendText("-");
+        ownmessage.appendText(to_string(dirtyclient).c_str());
+    }
+
     ownmessage._send(acceptedSocket);
 }
 
 void send_new_message()
 {
-    msg::Message ownmessage(msg::Message::Type::NEW_MESSAGE);
-    ownmessage.appendText(newmessages_for_client.c_str());
-    ownmessage._send(acceptedSocket);
-
-    newmessages_for_client = "";
+    size_t chatSize = chat.getSize();
+    if (dirtyclient > 0)
+    {
+        for (size_t i = chatSize - dirtyclient; i < chatSize; i++)
+        {
+            (*chat.getAt(i))._send(acceptedSocket);
+            (*chat.getAt(i)).setType(clca::msg::Message::Type::MESSAGE);
+        }
+    }
+    else
+    {
+        clca::msg::Message ownmessage(clca::msg::Message::Type::NEW_MESSAGE);
+        ownmessage.setOwner(username.c_str());
+        ownmessage.appendText("\0");
+        ownmessage._send(acceptedSocket);
+    }
 }
 
 void wait_client()
@@ -315,6 +322,12 @@ void wait_client()
     notified = false;
 }
 
+void prepareCUI()
+{
+    chat.print();
+    cout << "You:";
+}
+
 void wait_client_auth()
 {
 
@@ -324,5 +337,5 @@ void wait_client_auth()
     char filename[21] = "/";
     strcat(filename, clientname.c_str());
     strcat(filename, ".txt");
-    dirtyclient = clca::load_chat(chatbuffer, newmessages_for_client, newmessages, "/server_chat_cache", filename, username);
+    dirtyclient = clca::load_chat(chat, "/server_chat_cache", filename, username);
 }
