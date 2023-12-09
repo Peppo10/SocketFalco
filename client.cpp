@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
     if ((connection_flag = try_connection(sin_addr, 30000)) == FAILED_TO_CONNECT)
     {
         cout << "\033[38;2;255;0;0mCANNOT CONNECT TO THE SERVER\n";
-        cout << "write your message here, when you'll connect again with the server will receive it\033[0m\n";
+        cout << "write your message here, on the next session the server will receive it\033[0m\n";
         cout << "You:";
     }
     else

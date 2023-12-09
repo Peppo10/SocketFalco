@@ -40,7 +40,7 @@ typedef wchar_t _PATH_CHAR;
 #include <termios.h>
 #include <fcntl.h>
 #include <unistd.h>
-typedef SOCKET _SOCKET;
+typedef int _SOCKET;
 #define __MAX_PATH PATH_MAX
 #define _STR_COPY strcpy
 #define _STR_LEN strlen
