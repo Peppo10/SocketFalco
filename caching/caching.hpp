@@ -70,7 +70,7 @@ namespace clca
     {
         class Message
         {
-        protected:
+        private:
             char text[BUFSIZE];
 
             char owner[16];
@@ -131,9 +131,9 @@ namespace clca
     class Chat
     {
     private:
-        std::multiset<msg::Message> messages;
+        multiset<msg::Message> messages;
 
-        std::vector<msg::Message> queue;
+        vector<msg::Message> queue;
 
     public:
         Chat(){};
@@ -157,14 +157,9 @@ namespace clca
         int getSize();
     };
 
-    int load_chat(Chat &chat, const char *foldername, const char *filename, std::string &myname);
+    int load_chat(Chat &chat, const char *foldername, const char *filename, string &myname);
 
-    int save_chat(clca::Chat chat, std::string username);
-}
-
-namespace srca
-{
-    // TODO
+    int save_chat(clca::Chat chat, string username);
 }
 
 #endif

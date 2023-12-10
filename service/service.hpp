@@ -38,7 +38,7 @@ namespace srv
     void client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag, clca::Chat &chat, mutex &m1, string &servername, condition_variable &cv, bool &notified, string &input);
     void server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_flag, clca::Chat &chat, mutex &m1, string &clientname, condition_variable &cv, bool &notified, string &input);
 
-    enum connection_type_lis
+    enum connection_type_list
     {
         CONNECT_WITH_NEW_MESSAGE,
         CONNECT,

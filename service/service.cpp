@@ -147,7 +147,7 @@ void srv::handle_new_messages(clca::msg::Message newMessage, bool &notified, clc
         return;
     }
 
-    chat.addMessageToQueue(newMessage); // TODO the new messages from server is not at the top anymore(the client receive his message twice)
+    chat.addMessageToQueue(newMessage);
 
     (void)--(*newmsg);
 
