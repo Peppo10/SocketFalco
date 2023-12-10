@@ -175,12 +175,17 @@ int main()
                     }
                 }
             }
+            else
+            {
+                cout << "\033[G\033[K";
+            }
 
             m1.unlock();
 
             cout << "You:";
         } while (1);
 
+        chat.clearQueue();
         system(_CLEAR);
         cout << "listening on port " << PORT << "..." << endl;
     }
@@ -300,8 +305,8 @@ void send_new_message()
     {
         for (size_t i = chatSize - dirtyclient; i < chatSize; i++)
         {
-            (*chat.getAt(i))._send(acceptedSocket);
-            (*chat.getAt(i)).setType(clca::msg::Message::Type::MESSAGE);
+            chat.getAt(i)._send(acceptedSocket);
+            chat.getAt(i).setType(clca::msg::Message::Type::MESSAGE);
         }
     }
     else
@@ -311,6 +316,8 @@ void send_new_message()
         ownmessage.appendText("\0");
         ownmessage._send(acceptedSocket);
     }
+
+    chat.consumeQueueMessages();
 }
 
 void wait_client()

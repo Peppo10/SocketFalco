@@ -50,7 +50,7 @@ typedef char _PATH_CHAR;
 
 #include <filesystem>
 #include <fstream>
-#include <list>
+#include <set>
 #include <vector>
 #include <iostream>
 #include <string.h>
@@ -131,10 +131,18 @@ namespace clca
     class Chat
     {
     private:
-        std::list<msg::Message> messages;
+        std::multiset<msg::Message> messages;
+
+        std::vector<msg::Message> queue;
 
     public:
         Chat(){};
+
+        void addMessageToQueue(msg::Message msg);
+
+        void consumeQueueMessages();
+
+        void clearQueue();
 
         void addMessage(msg::Message msg);
 
@@ -142,7 +150,7 @@ namespace clca
 
         void clear();
 
-        msg::Message *getAt(int index);
+        msg::Message &getAt(int index);
 
         void print();
 

@@ -165,6 +165,10 @@ int main(int argc, char *argv[])
                 }
             }
         }
+        else
+        {
+            cout << "\033[G\033[K";
+        }
 
         m1.unlock();
         cout << "You:";
@@ -233,8 +237,8 @@ void send_new_message()
     {
         for (size_t i = chatSize - fileflag; i < chatSize; i++)
         {
-            (*chat.getAt(i))._send(local_socket);
-            (*chat.getAt(i)).setType(clca::msg::Message::Type::MESSAGE);
+            chat.getAt(i)._send(local_socket);
+            chat.getAt(i).setType(clca::msg::Message::Type::MESSAGE);
         }
     }
     else
@@ -248,6 +252,7 @@ void send_new_message()
 
 void prepareCUI()
 {
+    chat.consumeQueueMessages();
     chat.print();
     cout << "You:";
 }

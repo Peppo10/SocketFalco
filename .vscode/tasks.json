@@ -6,6 +6,7 @@
 			"type": "cppbuild",
 			"command": "C:/mingw64/bin/g++.exe",
 			"args": [
+				"-std=c++2b",
 				"-fdiagnostics-color=always",
 				"-g3",
 				"-Wall",

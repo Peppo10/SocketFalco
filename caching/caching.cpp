@@ -29,12 +29,30 @@ int dirtyflag;
 
 void clca::Chat::addMessage(clca::msg::Message msg)
 {
-    this->messages.push_back(msg);
+    this->messages.insert(msg);
 }
 
 void clca::Chat::removeMessage(clca::msg::Message msg)
 {
-    this->messages.remove(msg);
+    this->messages.extract(msg);
+}
+
+void clca::Chat::addMessageToQueue(clca::msg::Message msg)
+{
+    this->queue.push_back(msg);
+}
+
+void clca::Chat::consumeQueueMessages()
+{
+    for (auto it = this->queue.begin(); it != this->queue.end(); ++it)
+    {
+        this->addMessage(*it);
+    }
+}
+
+void clca::Chat::clearQueue()
+{
+    this->queue.clear();
 }
 
 void clca::Chat::clear()
@@ -42,19 +60,20 @@ void clca::Chat::clear()
     this->messages.clear();
 }
 
-clca::msg::Message *clca::Chat::getAt(int index)
+clca::msg::Message &clca::Chat::getAt(int index)
 {
     auto l_front = messages.begin();
 
     advance(l_front, index);
 
-    return &(*l_front);
+    return const_cast<msg::Message &>(*l_front);
 }
 
 void clca::Chat::print()
 {
-    for (clca::msg::Message &msg : this->messages)
+    for (auto it = this->messages.begin(); it != this->messages.end(); ++it)
     {
+        clca::msg::Message &msg = const_cast<msg::Message &>(*it);
         msg.print();
     }
 }
@@ -185,7 +204,7 @@ int clca::save_chat(clca::Chat chat, std::string username)
 
     for (int i = 0; i < chat.getSize(); i++)
     {
-        clca::msg::Message msg = *chat.getAt(i);
+        clca::msg::Message &msg = chat.getAt(i);
 
         chatcache << msg.getTimestamp() << "\xB2" << msg.getOwner() << "\xB2" << ((msg.getType() == clca::msg::Message::NEW_MESSAGE) ? "new" : "wen") << "\xB2" << msg.getContent()
                   << "\n";
@@ -254,7 +273,12 @@ string clca::msg::Message::getDecodedTimestamp()
 
     stringstream tms;
 
-    tms << "[" << timeInfo->tm_mday << "/" << timeInfo->tm_mon + 1 << "/" << (timeInfo->tm_year % 100) << " " << timeInfo->tm_hour << ":" << timeInfo->tm_min << "]";
+    tms << "[" << timeInfo->tm_mday
+        << "/" << timeInfo->tm_mon + 1
+        << "/" << (timeInfo->tm_year % 100) << " "
+        << timeInfo->tm_hour << ":" << ((timeInfo->tm_min < 10) ? "0" : "")
+        << timeInfo->tm_min << "]";
+
     return tms.str();
 }
 
