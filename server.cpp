@@ -63,11 +63,12 @@ condition_variable cv_load_chat;
 mutex m1;
 
 string username = "Server";
-string clientname = "";
+basic_string<_PATH_CHAR> clientuuid;
 clca::Chat chat;
 string newmessages = "";
 string newmessages_for_client = "";
 string input = "";
+string uuid;
 
 int clientconnect = srv::DISCONNECT;
 int dirtyclient;
@@ -89,6 +90,8 @@ int main()
 {
     if (setup_server(PORT))
         return -1;
+
+    clca::fileSysSetup(1);
 
     while (1)
     {
@@ -121,7 +124,7 @@ int main()
 
         notified = false;
 
-        new thread(srv::server_listen_reicvmessage, acceptedSocket, ref(clientconnect), ref(chat), ref(m1), ref(clientname), ref(cv_load_chat), ref(notified), ref(input));
+        new thread(srv::server_listen_reicvmessage, acceptedSocket, ref(clientconnect), ref(chat), ref(m1), ref(clientuuid), ref(cv_load_chat), ref(notified), ref(input));
 
         wait_client_auth();
 
@@ -154,8 +157,8 @@ int main()
                     _CLOSE_SOCKET(acceptedSocket);
                     m1.unlock();
 
-                    clca::save_chat(chat, username);
-                    clientname = "";
+                    clca::save_chat(chat, clientuuid);
+                    clientuuid.clear();
                     chat.clear();
                     newmessages = "";
                     break;
@@ -286,7 +289,7 @@ void send_auth()
     }
 
     clca::msg::Message ownmessage(clca::msg::Message::Type::AUTH);
-    ownmessage.setOwner(username.c_str());
+    ownmessage.setOwner(uuid.c_str());
     ownmessage.appendText(auth.c_str());
 
     if (dirtyclient > 0)
@@ -340,9 +343,12 @@ void wait_client_auth()
 
     unique_lock<mutex> ul(m1);
     cv_load_chat.wait(ul, []
-                      { return (clientname == "") ? false : true; });
-    char filename[21] = "/";
-    strcat(filename, clientname.c_str());
-    strcat(filename, ".txt");
-    dirtyclient = clca::load_chat(chat, "/server_chat_cache", filename, username);
+                      { return (clientuuid.empty()) ? false : true; });
+
+    if (clca::loadUUID(1, username, uuid) == FILE_NOT_ALREADY_EXISTS)
+    {
+        uuid = clca::genUUID(username);
+    }
+
+    dirtyclient = clca::load_chat(chat, clientuuid);
 }

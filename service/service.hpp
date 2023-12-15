@@ -35,8 +35,8 @@ namespace srv
     void handle_new_messages(clca::msg::Message newMessage, bool &notified, clca::Chat &chat, condition_variable &cv, mutex &m1, int *newmsg);
     void handle_message(clca::msg::Message newMessage, clca::Chat &chat, mutex &m1, string input);
     void handle_disconnect_message(clca::Chat &chat, mutex &m1, string input, int &connection_flag, char *message);
-    void client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag, clca::Chat &chat, mutex &m1, string &servername, condition_variable &cv, bool &notified, string &input);
-    void server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_flag, clca::Chat &chat, mutex &m1, string &clientname, condition_variable &cv, bool &notified, string &input);
+    void client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag, clca::Chat &chat, mutex &m1, basic_string<_PATH_CHAR> &serveruuid, condition_variable &cv, bool &notified, string &input);
+    void server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_flag, clca::Chat &chat, mutex &m1, basic_string<_PATH_CHAR> &clientuuid, condition_variable &cv, bool &notified, string &input);
 
     enum connection_type_list
     {

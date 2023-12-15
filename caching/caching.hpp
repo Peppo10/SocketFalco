@@ -28,11 +28,14 @@ SOFTWARE.*/
 #include <shlobj.h>
 #include <ws2tcpip.h>
 #include <conio.h>
+#include <random>
+#include <assert.h>
 typedef SOCKET _SOCKET;
 #define __MAX_PATH MAX_PATH
 #define _STR_COPY wcscpy
 #define _STR_LEN wcslen
 #define _STR_CAT wcscat
+#define _STR_FORMAT(str) L## #str
 typedef wchar_t _PATH_CHAR;
 #elif __linux
 #include <limits.h>
@@ -45,6 +48,7 @@ typedef int _SOCKET;
 #define _STR_COPY strcpy
 #define _STR_LEN strlen
 #define _STR_CAT strcat
+#define _STR_FORMAT(str) #str
 typedef char _PATH_CHAR;
 #endif
 
@@ -57,9 +61,11 @@ typedef char _PATH_CHAR;
 #include <sstream>
 
 #define BUFSIZE 264
-#define PATH_NOT_FOUND -1
+#define PATH_NOT_FOUND -3
+#define PATH_FOUND -2
 #define FILE_ALREADY_EXISTS 0
 #define FILE_NOT_ALREADY_EXISTS -1
+#define OWNERZIZE 34
 
 using namespace std;
 
@@ -73,7 +79,7 @@ namespace clca
         private:
             char text[BUFSIZE];
 
-            char owner[16];
+            char owner[OWNERZIZE];
 
             time_t timestamp;
 
@@ -81,6 +87,7 @@ namespace clca
             enum Type
             {
                 AUTH,
+                INFO,
                 MESSAGE,
                 NEW_MESSAGE
             };
@@ -157,9 +164,15 @@ namespace clca
         int getSize();
     };
 
-    int load_chat(Chat &chat, const char *foldername, const char *filename, string &myname);
+    int load_chat(Chat &chat, basic_string<_PATH_CHAR> filename);
 
-    int save_chat(clca::Chat chat, string username);
+    int loadUUID(int type, string &myname, string &uuid);
+
+    string genUUID(string username);
+
+    int save_chat(clca::Chat chat, basic_string<_PATH_CHAR> filename);
+
+    void fileSysSetup(int type);
 }
 
 #endif

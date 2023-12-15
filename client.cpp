@@ -62,7 +62,8 @@ string newmessages = "";
 string newmessages_for_server = "";
 string input = "";
 string username;
-string servername;
+basic_string<_PATH_CHAR> serveruuid;
+string uuid;
 
 int connection_flag;
 int serverconnect = srv::DISCONNECT, fileflag;
@@ -71,6 +72,8 @@ bool notified;
 int try_connection(in_addr, u_short);
 
 void send_auth();
+
+void send_info();
 
 void send_new_message();
 
@@ -89,13 +92,16 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    clca::fileSysSetup(0);
+
     in_addr sin_addr;
 
     inet_pton(AF_INET, argv[1], &sin_addr);
 
-    if ((fileflag = clca::load_chat(chat, "/client_chat_cache", "/cache.txt", username)) == FILE_NOT_ALREADY_EXISTS)
+    if (clca::loadUUID(0, username, uuid) == FILE_NOT_ALREADY_EXISTS)
     {
         handle_new_user();
+        uuid = clca::genUUID(username);
     }
 
     cout << "\033[38;2;255;255;0mWelcome " << username << "!\033[0m\n";
@@ -111,12 +117,16 @@ int main(int argc, char *argv[])
         notified = false;
 
         // listening thread
-        new thread(srv::client_listen_reicvmessage, local_socket, ref(serverconnect), ref(chat), ref(m1), ref(servername), ref(cv_print_message), ref(notified), ref(input));
+        new thread(srv::client_listen_reicvmessage, local_socket, ref(serverconnect), ref(chat), ref(m1), ref(serveruuid), ref(cv_print_message), ref(notified), ref(input));
 
         // this snippet is thread safe because the server will not send anything until it receive the AUTH message from client
         send_auth();
 
         wait_server();
+
+        send_info();
+
+        //TCP should ensure server receives the info first ? (Header Sequence number)
 
         send_new_message();
 
@@ -146,7 +156,7 @@ int main(int argc, char *argv[])
                 _CLOSE_SOCKET(local_socket);
                 m1.unlock();
 
-                clca::save_chat(chat, username);
+                clca::save_chat(chat, serveruuid);
 
                 return EXIT_SUCCESS;
             }
@@ -219,6 +229,14 @@ int try_connection(in_addr ip_address, u_short port)
 void send_auth()
 {
     clca::msg::Message ownmessage(clca::msg::Message::Type::AUTH);
+    ownmessage.setOwner(uuid.c_str());
+    ownmessage._send(local_socket);
+}
+
+void send_info(){
+    fileflag = clca::load_chat(chat, serveruuid);
+
+    clca::msg::Message ownmessage(clca::msg::Message::Type::INFO);
     ownmessage.setOwner(username.c_str());
 
     if (fileflag > 0)

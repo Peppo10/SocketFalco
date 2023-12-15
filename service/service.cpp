@@ -27,7 +27,7 @@ char SERVER_DISCONNECT[] = "\033[38;2;255;0;0mThe server is disconnected\033[0m\
 char NEW_MESSAGES[] = "\033[38;2;255;255;0mNew messages!\033[0m\n";
 char CHAT_LOAD_WITH_NEW_MESSAGES[] = "\033[38;2;0;255;0mUser authenticated, loading the chat with \033[4mnew messages!\033[0m";
 
-void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag, clca::Chat &chat, mutex &m1, string &servername, condition_variable &cv, bool &notified, string &input)
+void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag, clca::Chat &chat, mutex &m1, basic_string<_PATH_CHAR> &serveruuid, condition_variable &cv, bool &notified, string &input)
 {
     int *newmsg;
 
@@ -49,6 +49,19 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
             switch (servermessage.type)
             {
             case clca::msg::Message::Type::AUTH:
+
+#ifdef _WIN32
+            {
+                std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+                serveruuid = converter.from_bytes(servermessage.getOwner());
+            }
+#elif __linux__
+            {
+                serveruuid = servermessage.getOwner();
+            }
+#endif
+
+                servermessage.setOwner("Server");
                 servermessage.print();
 
                 if ((servermessage.getContent() == nullptr) || (servermessage.getContent()[0] == '\0'))
@@ -65,6 +78,9 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
                 cv.notify_one();
                 m1.unlock();
                 break;
+            case clca::msg::Message::Type::INFO:
+                cerr << "INFO message not handled by client" << endl;
+                break; 
             case clca::msg::Message::Type::MESSAGE:
                 handle_message(servermessage, chat, m1, input);
                 break;
@@ -81,7 +97,7 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
     }
 }
 
-void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_flag, clca::Chat &chat, mutex &m1, string &clientname, condition_variable &cv, bool &notified, string &input)
+void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_flag, clca::Chat &chat, mutex &m1, basic_string<_PATH_CHAR> &clientuuid, condition_variable &cv, bool &notified, string &input)
 {
 
     int *newmsg;
@@ -104,21 +120,31 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
             switch (clientmessage.type)
             {
             case clca::msg::Message::Type::AUTH:
-                clientname = clientmessage.getOwner();
 
-                if ((clientmessage.getContent() == nullptr) || (clientmessage.getContent()[0] == '\0'))
-                {
-                    goto notify;
-                }
-
-                if (strcmp(strtok(clientmessage.getContent(), "-"), "new") == 0)
-                    newmsg = new int(stoi(strtok(NULL, "-")));
-
-            notify:
+#ifdef _WIN32
+            {
+                std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+                clientuuid = converter.from_bytes(clientmessage.getOwner());
+            }
+#elif __linux__
+            {
+                clientuuid = clientmessage.getOwner();
+            }
+#endif
 
                 cv.notify_one();
                 m1.unlock();
                 break;
+            case clca::msg::Message::Type::INFO:
+
+                if (clientmessage.getContent()[0] != '\0')
+                {
+                    if (strcmp(strtok(clientmessage.getContent(), "-"), "new") == 0)
+                        newmsg = new int(stoi(strtok(NULL, "-")));
+                }
+
+                m1.unlock();
+                break;    
             case clca::msg::Message::Type::MESSAGE:
                 handle_message(clientmessage, chat, m1, input);
                 break;

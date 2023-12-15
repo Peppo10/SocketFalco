@@ -22,10 +22,75 @@ SOFTWARE.*/
 
 #include "caching.hpp"
 
-_PATH_CHAR path[__MAX_PATH];
-_PATH_CHAR *path_ref = NULL;
+basic_string<_PATH_CHAR> root_dir;
+basic_string<_PATH_CHAR> cache_dir;
+basic_string<_PATH_CHAR> auth_dir;
 fstream chatcache;
 int dirtyflag;
+
+string _UUID()
+{
+    random_device rd;
+    mt19937_64 gen(rd());
+    uniform_int_distribution<uint64_t> dis;
+
+    uint64_t half1 = dis(gen);
+    uint64_t half2 = dis(gen);
+
+    half1 &= ~(0xFULL << 12);
+    half1 |= (0x4ULL << 12); // Set the version to 4
+
+    half2 &= ~(0x3ULL << 62);
+    half2 |= (0x2ULL << 62); // Set the variant to 0b10
+
+    stringstream uuidStream;
+
+    uuidStream << hex << setw(16) << setfill('0') << half1 << setw(16) << setfill('0') << half2;
+
+    return uuidStream.str();
+}
+
+int setRootDir()
+{
+    _PATH_CHAR *path;
+#ifdef _WIN32
+    if (!SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppDataLow, 0, NULL, &path)))
+    { // get /user/appdata/localLow folder
+        cout << "Directory not found!";
+        system("pause");
+        return PATH_NOT_FOUND;
+    }
+    else
+    {
+        for (size_t i = 0; i < wcslen(path); i++)
+        { // switch \ to / because C:\..\..\.. is invalis path
+            if (path[i] == '\\')
+            {
+                path[i] = '/';
+            }
+        }
+
+        root_dir = path;
+    }
+#elif __linux__
+    root_dir = getenv("XDG_DATA_HOME");
+
+    if (root_dir == NULL || root_dir[0] == '\0')
+    { // XDG_DATA_HOME not set
+        root_dir = getenv("HOME");
+
+        if (root_dir == NULL || root_dir[0] == '\0')
+        { // HOME not set
+            root_dir = "/tmp";
+        }
+        else
+        {
+            root_dir.append("/.local/share)";
+        }
+    }
+#endif
+    return PATH_FOUND;
+}
 
 namespace clca
 {
@@ -85,124 +150,52 @@ namespace clca
         return this->messages.size();
     }
 
-    int load_chat(Chat &chat, const char *foldername, const char *filename, string &myname)
+    int load_chat(Chat &chat, basic_string<_PATH_CHAR> filename)
     {
-#ifdef _WIN32
-        if (!SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppDataLow, 0, NULL, &path_ref)))
-        { // get /user/appdata/localLow folder
-            cout << "Directory not found!";
-            system("pause");
-            return PATH_NOT_FOUND;
+        basic_string<_PATH_CHAR> filedir = cache_dir + _STR_FORMAT(/) + filename;
+
+        if (!(chatcache = fstream(filedir.c_str())))
+        {
+            chatcache.open(filedir.c_str(), fstream::in | fstream::out | fstream::trunc);
+            dirtyflag = FILE_NOT_ALREADY_EXISTS;
         }
         else
         {
-#elif __linux__
-        if (path_ref == NULL)
-        {
-            path_ref = getenv("XDG_DATA_HOME");
+            dirtyflag = FILE_ALREADY_EXISTS;
+            string line;
 
-            if (path_ref == NULL || path_ref[0] == '\0')
-            { // XDG_DATA_HOME not set
-                path_ref = getenv("HOME");
+            while (getline(chatcache, line))
+            {
+                msg::Message message(msg::Message::MESSAGE);
 
-                if (path_ref == NULL || path_ref[0] == '\0')
-                { // HOME not set
-                    path_ref = "/tmp";
-                }
-                else
+                vector<char> cstr(line.c_str(), line.c_str() + line.size() + 1);
+
+                message.setTimestamp(stol(strtok(cstr.data(), "\xB2")));
+
+                message.setOwner(strtok(NULL, "\xB2"));
+
+                if (strcmp(strtok(NULL, "\xB2"), "new") == 0)
                 {
-                    strcat(path_ref, "/.local/share");
+                    message.setType(msg::Message::NEW_MESSAGE);
+                    dirtyflag++;
                 }
+
+                message.appendText(strtok(NULL, "\xB2"));
+
+                chat.addMessage(message);
             }
         }
-#endif
-            _STR_COPY(path, path_ref);
-            for (size_t i = 0; i < _STR_LEN(path); i++)
-            { // switch \ to / because C:\..\..\.. is invalis path
-                if (path[i] == '\\')
-                {
-                    path[i] = '/';
-                }
-            }
-
-            _PATH_CHAR *wc = new _PATH_CHAR[strlen(foldername) + 1];
-
-#ifdef _WIN32
-            mbstowcs(wc, foldername, strlen(foldername) + 1);
-#elif __linux__
-        _STR_COPY(wc, foldername);
-#endif
-
-            _STR_CAT(path, wc);
-
-            try
-            {
-                if (filesystem::create_directory(path))
-                {
-                    cout << "directory created!";
-                }
-            }
-            catch (exception &e)
-            {
-                cout << e.what() << endl;
-            }
-
-            wc = new _PATH_CHAR[strlen(filename) + 1];
-
-#ifdef _WIN32
-            mbstowcs(wc, filename, strlen(filename) + 1);
-#elif __linux__
-        _STR_COPY(wc, filename);
-#endif
-
-            _STR_CAT(path, wc);
-
-            if (!(chatcache = fstream(path)))
-            {
-                chatcache.open(path, fstream::in | fstream::out | fstream::trunc);
-                dirtyflag = FILE_NOT_ALREADY_EXISTS;
-            }
-            else
-            {
-                dirtyflag = FILE_ALREADY_EXISTS;
-                string line;
-
-                getline(chatcache, myname);
-
-                while (getline(chatcache, line))
-                {
-                    msg::Message message(msg::Message::MESSAGE);
-
-                    vector<char> cstr(line.c_str(), line.c_str() + line.size() + 1);
-
-                    message.setTimestamp(stol(strtok(cstr.data(), "\xB2")));
-
-                    message.setOwner(strtok(NULL, "\xB2"));
-
-                    if (strcmp(strtok(NULL, "\xB2"), "new") == 0)
-                    {
-                        message.setType(msg::Message::NEW_MESSAGE);
-                        dirtyflag++;
-                    }
-
-                    message.appendText(strtok(NULL, "\xB2"));
-
-                    chat.addMessage(message);
-                }
-            }
-            chatcache.close();
-            chatcache.clear();
-#ifdef _WIN32
-        }
-#endif
+        chatcache.close();
+        chatcache.clear();
 
         return dirtyflag;
     }
 
-    int save_chat(Chat chat, string username)
+    int save_chat(Chat chat, basic_string<_PATH_CHAR> filename)
     {
-        chatcache.open(path, fstream::in | fstream::out | fstream::trunc); // TODO create another file every time(it's not good for long chat)
-        chatcache << username + "\n";
+        basic_string<_PATH_CHAR> filedir = cache_dir + _STR_FORMAT(/) + filename;
+
+        chatcache.open(filedir.c_str(), fstream::in | fstream::out | fstream::trunc); // TODO create another file every time(it's not good for long chat)
 
         for (int i = 0; i < chat.getSize(); i++)
         {
@@ -218,12 +211,98 @@ namespace clca
         return 1;
     }
 
+    int loadUUID(int type, string &myname, string &uuid)
+    {
+        basic_string<_PATH_CHAR> filedir = auth_dir + _STR_FORMAT(/uuid);
+
+        if (!(chatcache = fstream(filedir.c_str())))
+        {
+            chatcache.open(filedir.c_str(), fstream::in | fstream::out | fstream::trunc);
+            dirtyflag = FILE_NOT_ALREADY_EXISTS;
+        }
+        else
+        {
+            dirtyflag = FILE_ALREADY_EXISTS;
+
+            getline(chatcache, myname);
+            getline(chatcache, uuid);
+        }
+        chatcache.close();
+        chatcache.clear();
+
+        return dirtyflag;
+    }
+
+    string genUUID(string username)
+    {
+        string uuid = _UUID();
+
+        basic_string<_PATH_CHAR> filedir = auth_dir + _STR_FORMAT(/uuid);
+
+        chatcache.open(filedir.c_str(), fstream::in | fstream::out | fstream::trunc);
+
+        chatcache << username + "\n";
+        chatcache << uuid;
+
+        chatcache.close();
+        chatcache.clear();
+
+        return uuid;
+    }
+
+    void fileSysSetup(int type)
+    {
+        setRootDir();
+
+        root_dir = root_dir + (type == 0 ? _STR_FORMAT(/client) : _STR_FORMAT(/server));
+
+        try
+        {
+            if (filesystem::create_directory(root_dir))
+            {
+                cout << "directory created!";
+            }
+        }
+        catch (exception &e)
+        {
+            cout << e.what() << endl;
+        }
+
+        auth_dir = root_dir + _STR_FORMAT(/auth);
+
+        try
+        {
+            if (filesystem::create_directory(auth_dir))
+            {
+                cout << "directory created!";
+            }
+        }
+        catch (exception &e)
+        {
+            cout << e.what() << endl;
+        }
+
+        cache_dir = root_dir + _STR_FORMAT(/cache);
+
+        try
+        {
+            if (filesystem::create_directory(cache_dir))
+            {
+                cout << "directory created!";
+            }
+        }
+        catch (exception &e)
+        {
+            cout << e.what() << endl;
+        }
+    }
+
     namespace msg
     {
         Message::Message(const Message &other) : timestamp(other.timestamp), type(other.type)
         {
-            strcpy(this->owner, other.owner);
-            strcpy(this->text, other.text);
+            strncpy(this->owner, other.owner, OWNERZIZE);
+            strncpy(this->text, other.text, BUFSIZE);
         }
 
         Message::Message(Type t) : text{}, owner{}, type(t)
@@ -238,7 +317,7 @@ namespace clca
                 return *this;
             }
 
-            strcpy(this->text, other.text);
+            strncpy(this->text, other.text, OWNERZIZE);
             this->type = other.type;
             this->timestamp = other.timestamp;
 
@@ -257,7 +336,7 @@ namespace clca
 
         void Message::setOwner(const char *owner)
         {
-            strcpy(this->owner, owner);
+            strncpy(this->owner, owner, OWNERZIZE);
         }
 
         char *Message::getOwner()

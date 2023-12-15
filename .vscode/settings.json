@@ -1,5 +1,6 @@
 {
     "C_Cpp.errorSquiggles": "disabled",
+    "editor.formatOnSave": false,
     "files.associations": {
         "iostream": "cpp",
         "new": "cpp",
