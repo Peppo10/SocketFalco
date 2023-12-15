@@ -28,7 +28,6 @@ SOFTWARE.*/
 #include <shlobj.h>
 #include <ws2tcpip.h>
 #include <conio.h>
-#include <random>
 #include <assert.h>
 typedef SOCKET _SOCKET;
 #define __MAX_PATH MAX_PATH
@@ -59,6 +58,7 @@ typedef char _PATH_CHAR;
 #include <iostream>
 #include <string.h>
 #include <sstream>
+#include <random>
 
 #define BUFSIZE 264
 #define PATH_NOT_FOUND -3

@@ -73,20 +73,24 @@ int setRootDir()
         root_dir = path;
     }
 #elif __linux__
-    root_dir = getenv("XDG_DATA_HOME");
+    path = getenv("XDG_DATA_HOME");
 
-    if (root_dir == NULL || root_dir[0] == '\0')
+    if (path == NULL || path[0] == '\0')
     { // XDG_DATA_HOME not set
-        root_dir = getenv("HOME");
+        path = getenv("HOME");
 
-        if (root_dir == NULL || root_dir[0] == '\0')
+        if (path == NULL || path[0] == '\0')
         { // HOME not set
             root_dir = "/tmp";
         }
         else
         {
+            root_dir=path;
             root_dir.append("/.local/share)";
         }
+    }
+    else{
+        root_dir=path;
     }
 #endif
     return PATH_FOUND;
