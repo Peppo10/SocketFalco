@@ -165,7 +165,7 @@ int main()
                 }
                 else
                 {
-                    clca::msg::Message ownmessage((clientconnect != srv::CONNECT) ? clca::msg::Message::Type::NEW_MESSAGE : clca::msg::Message::Type::MESSAGE);
+                    clca::msg::Message ownmessage((clientconnect != srv::CONNECT) ? clca::msg::Type::NEW_MESSAGE : clca::msg::Type::MESSAGE);
                     ownmessage.setOwner(username.c_str());
                     ownmessage.appendText(input.c_str());
                     chat.addMessage(ownmessage);
@@ -288,7 +288,7 @@ void send_auth()
         break;
     }
 
-    clca::msg::Message ownmessage(clca::msg::Message::Type::AUTH);
+    clca::msg::Message ownmessage(clca::msg::Type::AUTH);
     ownmessage.setOwner(uuid.c_str());
     ownmessage.appendText(auth.c_str());
 
@@ -309,12 +309,12 @@ void send_new_message()
         for (size_t i = chatSize - dirtyclient; i < chatSize; i++)
         {
             chat.getAt(i)._send(acceptedSocket);
-            chat.getAt(i).setType(clca::msg::Message::Type::MESSAGE);
+            chat.getAt(i).setType(clca::msg::Type::MESSAGE);
         }
     }
     else
     {
-        clca::msg::Message ownmessage(clca::msg::Message::Type::NEW_MESSAGE);
+        clca::msg::Message ownmessage(clca::msg::Type::NEW_MESSAGE);
         ownmessage.setOwner(username.c_str());
         ownmessage.appendText("\0");
         ownmessage._send(acceptedSocket);

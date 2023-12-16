@@ -119,6 +119,8 @@ namespace clca
         {
             this->addMessage(*it);
         }
+
+        this->queue.clear();
     }
 
     void Chat::clearQueue()
@@ -170,7 +172,7 @@ namespace clca
 
             while (getline(chatcache, line))
             {
-                msg::Message message(msg::Message::MESSAGE);
+                msg::Message message(msg::Type::MESSAGE);
 
                 vector<char> cstr(line.c_str(), line.c_str() + line.size() + 1);
 
@@ -180,7 +182,7 @@ namespace clca
 
                 if (strcmp(strtok(NULL, "\xB2"), "new") == 0)
                 {
-                    message.setType(msg::Message::NEW_MESSAGE);
+                    message.setType(msg::Type::NEW_MESSAGE);
                     dirtyflag++;
                 }
 
@@ -205,7 +207,7 @@ namespace clca
         {
             msg::Message &msg = chat.getAt(i);
 
-            chatcache << msg.getTimestamp() << "\xB2" << msg.getOwner() << "\xB2" << ((msg.getType() == msg::Message::NEW_MESSAGE) ? "new" : "wen") << "\xB2" << msg.getContent()
+            chatcache << msg.getTimestamp() << "\xB2" << msg.getOwner() << "\xB2" << ((msg.getType() == msg::Type::NEW_MESSAGE) ? "new" : "wen") << "\xB2" << msg.getContent()
                       << "\n";
         }
 
@@ -303,7 +305,7 @@ namespace clca
 
     namespace msg
     {
-        Message::Message(const Message &other) : timestamp(other.timestamp), type(other.type)
+        Message::Message(const Message &other) : timestamp(other.timestamp), type(other.getType())
         {
             strncpy(this->owner, other.owner, OWNERZIZE);
             strncpy(this->text, other.text, BUFSIZE);
@@ -369,7 +371,7 @@ namespace clca
             return tms.str();
         }
 
-        void Message::setType(Message::Type type)
+        void Message::setType(msg::Type type)
         {
             this->type = type;
         }
@@ -394,21 +396,21 @@ namespace clca
             return this->text;
         }
 
-        Message::Type Message::getType()
+        msg::Type Message::getType() const
         {
             return this->type;
         }
 
         void Message::print()
         {
-            cout << this->getDecodedTimestamp() << " " << this->getOwner() << ": " << this->getContent() << ((this->type == Message::NEW_MESSAGE) ? "\033[38;2;255;255;0m \xFEnew\xFE\033[0m" : "") << endl;
+            cout << this->getDecodedTimestamp() << " " << this->getOwner() << ": " << this->getContent() << ((this->type == msg::Type::NEW_MESSAGE) ? "\033[38;2;255;255;0m \xFEnew\xFE\033[0m" : "") << endl;
             this->normalize();
         }
 
         void Message::normalize()
         {
-            if (this->type == Message::NEW_MESSAGE)
-                this->setType(Message::MESSAGE);
+            if (this->type == msg::Type::NEW_MESSAGE)
+                this->setType(msg::Type::MESSAGE);
         }
 
         bool message_is_ready(string &input, string username)

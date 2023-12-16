@@ -46,9 +46,9 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
 
         if (result > 0)
         {
-            switch (servermessage.type)
+            switch (servermessage.getType())
             {
-            case clca::msg::Message::Type::AUTH:
+            case clca::msg::Type::AUTH:
 
 #ifdef _WIN32
             {
@@ -78,13 +78,13 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
                 cv.notify_one();
                 m1.unlock();
                 break;
-            case clca::msg::Message::Type::INFO:
+            case clca::msg::Type::INFO:
                 cerr << "INFO message not handled by client" << endl;
                 break; 
-            case clca::msg::Message::Type::MESSAGE:
+            case clca::msg::Type::MESSAGE:
                 handle_message(servermessage, chat, m1, input);
                 break;
-            case clca::msg::Message::Type::NEW_MESSAGE:
+            case clca::msg::Type::NEW_MESSAGE:
                 handle_new_messages(servermessage, notified, chat, cv, m1, newmsg);
                 break;
             }
@@ -117,9 +117,9 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
 
         if (result > 0)
         {
-            switch (clientmessage.type)
+            switch (clientmessage.getType())
             {
-            case clca::msg::Message::Type::AUTH:
+            case clca::msg::Type::AUTH:
 
 #ifdef _WIN32
             {
@@ -135,7 +135,7 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
                 cv.notify_one();
                 m1.unlock();
                 break;
-            case clca::msg::Message::Type::INFO:
+            case clca::msg::Type::INFO:
 
                 if (clientmessage.getContent()[0] != '\0')
                 {
@@ -145,10 +145,10 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
 
                 m1.unlock();
                 break;    
-            case clca::msg::Message::Type::MESSAGE:
+            case clca::msg::Type::MESSAGE:
                 handle_message(clientmessage, chat, m1, input);
                 break;
-            case clca::msg::Message::Type::NEW_MESSAGE:
+            case clca::msg::Type::NEW_MESSAGE:
                 handle_new_messages(clientmessage, notified, chat, cv, m1, newmsg);
                 break;
             }
@@ -166,10 +166,8 @@ void srv::handle_new_messages(clca::msg::Message newMessage, bool &notified, clc
     if (strcmp(newMessage.getContent(), "\0") == 0)
     {
         notified = true;
-
         cv.notify_one();
         m1.unlock();
-
         return;
     }
 
@@ -190,7 +188,6 @@ void srv::handle_new_messages(clca::msg::Message newMessage, bool &notified, clc
 
 void srv::handle_message(clca::msg::Message newMessage, clca::Chat &chat, mutex &m1, string input)
 {
-
     chat.addMessage(newMessage);
     cout << "\033[G\033[K";
     newMessage.print();

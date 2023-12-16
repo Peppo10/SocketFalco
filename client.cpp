@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                clca::msg::Message ownmessage((connection_flag == FAILED_TO_CONNECT) || (serverconnect != srv::CONNECT) ? clca::msg::Message::Type::NEW_MESSAGE : clca::msg::Message::Type::MESSAGE);
+                clca::msg::Message ownmessage((connection_flag == FAILED_TO_CONNECT) || (serverconnect != srv::CONNECT) ? clca::msg::Type::NEW_MESSAGE : clca::msg::Type::MESSAGE);
                 ownmessage.setOwner(username.c_str());
                 ownmessage.appendText(input.c_str());
                 chat.addMessage(ownmessage);
@@ -228,7 +228,7 @@ int try_connection(in_addr ip_address, u_short port)
 
 void send_auth()
 {
-    clca::msg::Message ownmessage(clca::msg::Message::Type::AUTH);
+    clca::msg::Message ownmessage(clca::msg::Type::AUTH);
     ownmessage.setOwner(uuid.c_str());
     ownmessage._send(local_socket);
 }
@@ -236,7 +236,7 @@ void send_auth()
 void send_info(){
     fileflag = clca::load_chat(chat, serveruuid);
 
-    clca::msg::Message ownmessage(clca::msg::Message::Type::INFO);
+    clca::msg::Message ownmessage(clca::msg::Type::INFO);
     ownmessage.setOwner(username.c_str());
 
     if (fileflag > 0)
@@ -256,12 +256,12 @@ void send_new_message()
         for (size_t i = chatSize - fileflag; i < chatSize; i++)
         {
             chat.getAt(i)._send(local_socket);
-            chat.getAt(i).setType(clca::msg::Message::Type::MESSAGE);
+            chat.getAt(i).setType(clca::msg::Type::MESSAGE);
         }
     }
     else
     {
-        clca::msg::Message ownmessage(clca::msg::Message::Type::NEW_MESSAGE);
+        clca::msg::Message ownmessage(clca::msg::Type::NEW_MESSAGE);
         ownmessage.setOwner(username.c_str());
         ownmessage.appendText("\0");
         ownmessage._send(local_socket);

@@ -74,6 +74,15 @@ namespace clca
 
     namespace msg
     {
+
+        enum class Type{
+                AUTH = 0x0f000000,
+                INFO = 0x00ff0000,
+                MESSAGE = 0x0000ff00,
+                NEW_MESSAGE = 0x000000ff
+        };
+
+        
         class Message
         {
         private:
@@ -83,16 +92,9 @@ namespace clca
 
             time_t timestamp;
 
-        public:
-            enum Type
-            {
-                AUTH,
-                INFO,
-                MESSAGE,
-                NEW_MESSAGE
-            };
-
             Type type;
+
+        public:
 
             Message(){};
 
@@ -116,7 +118,7 @@ namespace clca
 
             char *getContent();
 
-            Type getType();
+            Type getType() const;
 
             void setType(Type type);
 
