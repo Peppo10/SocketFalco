@@ -33,8 +33,11 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
 
     while (1)
     {
-        clca::msg::Message servermessage;
-        int result = recv(local_socket, (char *)&(servermessage), sizeof(clca::msg::Message), 0);
+        char msg[305];
+
+        int result = recv(local_socket, msg, /**TODO*/305, 0);
+
+        clca::msg::Message servermessage(clca::msg::Message::buildFromString(msg));
 
         m1.lock();
 
@@ -104,8 +107,11 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
 
     while (1)
     {
-        clca::msg::Message clientmessage;
-        int result = recv(acceptedSocket, (char *)&(clientmessage), sizeof(clca::msg::Message), 0);
+        char msg[305];
+
+        int result = recv(acceptedSocket, msg, /**TODO*/305, 0);
+
+        clca::msg::Message clientmessage(clca::msg::Message::buildFromString(msg));
 
         m1.lock();
 

@@ -86,7 +86,7 @@ int setRootDir()
         else
         {
             root_dir=path;
-            root_dir.append("/.local/share)";
+            root_dir.append("/.local/share");
         }
     }
     else{
@@ -311,6 +311,11 @@ namespace clca
             strncpy(this->text, other.text, BUFSIZE);
         }
 
+        Message::Message(){
+            memset(this->text, '\0', BUFSIZE);
+            memset(this->owner, '\0', OWNERZIZE); 
+        }
+
         Message::Message(Type t) : text{}, owner{}, type(t)
         {
             this->timestamp = chrono::system_clock::to_time_t(chrono::system_clock::now());
@@ -328,6 +333,56 @@ namespace clca
             this->timestamp = other.timestamp;
 
             return *this;
+        }
+
+        Message Message::buildFromString(string str){
+            Message msg;
+
+            istringstream _str(str);
+
+            size_t text_size,own_size;
+
+            vector<char> input(9);
+            _str.read(&input[0],input.size()-1);
+            msg.setTimestamp(strtol(&input[0], NULL, 16));
+            input.clear();
+
+            input.resize(5);
+            _str.read(&input[0],input.size()-1);
+            msg.setType(static_cast<Type>(strtol(&input[0], NULL, 16 )));
+            input.clear();
+
+            input.resize(3);
+            _str.read(&input[0],input.size()-1);
+            text_size=strtol( &input[0], NULL, 16 );
+            input.clear();
+
+            input.resize(3);
+            _str.read(&input[0],input.size()-1);
+            own_size=strtol(&input[0], NULL, 16 );
+            input.clear();
+
+            if(text_size==0)
+                goto no_text;
+
+            input.resize(text_size+1);
+            _str.read(&input[0],text_size);
+            msg.appendText(&input[0]);
+            input.clear();
+
+            no_text:
+
+            if(own_size==0)
+                goto no_own;
+
+            input.resize(own_size+1);
+            _str.read(&input[0],own_size);
+            msg.setOwner(&input[0]);
+            input.clear();
+
+            no_own:
+
+            return msg;
         }
 
         bool Message::operator<(const Message &other) const
@@ -388,8 +443,24 @@ namespace clca
 
         void Message::_send(_SOCKET socket)
         {
-            send(socket, (char *)this, sizeof(Message), 0);
+            string msg = this->parseString();
+            send(socket, msg.c_str(), msg.length(), 0);
         };
+
+        string Message::parseString(){
+            ostringstream _str;
+
+            _str<<hex
+                <<setw(8)<<setfill('0')<<(0xFFFFFFFF & this->getTimestamp())
+                <<setw(4)<<setfill('0')<<(0xFFFF & this->getType())
+                <<setw(2)<<setfill('0')<<(0xFF & strlen(this->text))
+                <<setw(2)<<setfill('0')<<(0xFF & strlen(this->owner))
+                <<this->text
+                <<this->owner;
+            
+
+            return _str.str();
+        }
 
         char *Message::getContent()
         {

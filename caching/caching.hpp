@@ -60,7 +60,7 @@ typedef char _PATH_CHAR;
 #include <sstream>
 #include <random>
 
-#define BUFSIZE 264
+#define BUFSIZE 255
 #define PATH_NOT_FOUND -3
 #define PATH_FOUND -2
 #define FILE_ALREADY_EXISTS 0
@@ -75,11 +75,11 @@ namespace clca
     namespace msg
     {
 
-        enum class Type{
-                AUTH = 0x0f000000,
-                INFO = 0x00ff0000,
-                MESSAGE = 0x0000ff00,
-                NEW_MESSAGE = 0x000000ff
+        enum Type{
+                AUTH = 0xf000,
+                INFO = 0x0f00,
+                MESSAGE = 0x00f0,
+                NEW_MESSAGE = 0x000f
         };
 
         
@@ -94,9 +94,11 @@ namespace clca
 
             Type type;
 
+            string parseString();
+
         public:
 
-            Message(){};
+            Message();
 
             Message(const Message &other);
 
@@ -131,6 +133,8 @@ namespace clca
             void print();
 
             void normalize();
+
+            static Message buildFromString(string str); 
         };
 
         bool message_is_ready(string &input, string username);
