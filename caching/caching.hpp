@@ -134,7 +134,7 @@ namespace clca
 
             void normalize();
 
-            static Message *fetchMessageFromString(vector<char>::iterator &str); 
+            static Message *fetchMessageFromString(vector<char>::iterator &str, const vector<char>::iterator &end); 
         };
 
         bool message_is_ready(string &input, string username);

@@ -35,20 +35,27 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
 
     vector<clca::msg::Message> queue;
 
+    vector<char> msg(305);
+
+    size_t msg_offset=0;
+
     while (1)
     {
         if(queue.empty()){
-            vector<char> msg(305);
 
-            result = recv(local_socket, &msg[0], /**TODO*/305, 0);
+            result = recv(local_socket, &msg[msg_offset], /**TODO*/305-msg_offset, 0);
 
             vector<char>::iterator it=msg.begin();
 
             while(1){
-                unique_ptr<clca::msg::Message> message(clca::msg::Message::fetchMessageFromString(it));
+                unique_ptr<clca::msg::Message> message(clca::msg::Message::fetchMessageFromString(it,msg.end()));
 
-                if(message == nullptr)
+                if(message == nullptr){
+                    msg.erase(msg.begin(),it);
+                    msg_offset = (*it == '\0') ? 0 : msg.size();
+                    msg.resize(305);
                     break;
+                }
 
                 queue.insert(queue.begin(), *message);
             }
@@ -128,23 +135,31 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
 
     vector<clca::msg::Message> queue;
 
+    vector<char> msg(305);
+
+    size_t msg_offset=0;
+
     while (1)
     {
         if(queue.empty()){
-            vector<char> msg(305);
 
-            result = recv(acceptedSocket, &msg[0], /**TODO*/305, 0);
+            result = recv(acceptedSocket, &msg[msg_offset], /**TODO*/305-msg_offset, 0);
 
             vector<char>::iterator it=msg.begin();
 
             while(1){
-                unique_ptr<clca::msg::Message> message(clca::msg::Message::fetchMessageFromString(it));
+                unique_ptr<clca::msg::Message> message(clca::msg::Message::fetchMessageFromString(it,msg.end()));
 
-                if(message == nullptr)
+                if(message == nullptr){
+                    msg.erase(msg.begin(),it);
+                    msg_offset = (*it == '\0') ? 0 : msg.size();
+                    msg.resize(305);
                     break;
+                }
 
                 queue.insert(queue.begin(), *message);
             }
+
         }
 
         clca::msg::Message clientmessage=*(queue.end()-1);

@@ -335,7 +335,7 @@ namespace clca
             return *this;
         }
 
-        Message *Message::fetchMessageFromString(vector<char>::iterator &str){
+        Message *Message::fetchMessageFromString(vector<char>::iterator &str, const vector<char>::iterator &end){
             Message *msg = new Message();
 
             size_t text_size,own_size;
@@ -347,25 +347,53 @@ namespace clca
             vector<char> input(9);
             copy(str, str + input.size()-1, input.begin());
             msg->setTimestamp(strtol(&input[0], NULL, 16));
-            str+=input.size()-1;
+
+            if((str + input.size()-1) < end){
+                str+=input.size()-1;
+            }
+            else{
+                return nullptr;
+            }
+            
             input.clear();
 
             input.resize(5);
             copy(str, str + input.size()-1, input.begin());
             msg->setType(static_cast<Type>(strtol(&input[0], NULL, 16 )));
-            str+=input.size()-1;
+            
+            if((str + input.size()-1) < end){
+                str+=input.size()-1;
+            }
+            else{
+                return nullptr;
+            }
+
             input.clear();
 
             input.resize(3);
             copy(str, str + input.size()-1, input.begin());
             text_size=strtol( &input[0], NULL, 16 );
-            str+=input.size()-1;
+            
+            if((str + input.size()-1) < end){
+                str+=input.size()-1;
+            }
+            else{
+                return nullptr;
+            }
+
             input.clear();
 
             input.resize(3);
             copy(str, str + input.size()-1, input.begin());
             own_size=strtol(&input[0], NULL, 16 );
-            str+=input.size()-1;
+            
+            if((str + input.size()-1) < end){
+                str+=input.size()-1;
+            }
+            else{
+                return nullptr;
+            }
+
             input.clear();
 
             if(text_size==0)
@@ -374,7 +402,14 @@ namespace clca
             input.resize(text_size+1);
             copy(str, str + text_size, input.begin());
             msg->appendText(&input[0]);
-            str+=text_size;
+            
+            if((str + text_size) < end){
+                str+=text_size;
+            }
+            else{
+                return nullptr;
+            }
+
             input.clear();
 
             no_text:
@@ -385,7 +420,14 @@ namespace clca
             input.resize(own_size+1);
             copy(str, str + own_size, input.begin());
             msg->setOwner(&input[0]);
-            str+=own_size;
+            
+            if((str + own_size+1) < end){
+                str+=own_size+1;
+            }
+            else{
+                return nullptr;
+            }
+
             input.clear();
 
             no_own:
@@ -452,7 +494,7 @@ namespace clca
         void Message::_send(_SOCKET socket)
         {
             string msg = this->parseString();
-            send(socket, msg.c_str(), msg.length(), 0);
+            send(socket, msg.c_str(), msg.length()+1, 0);
         };
 
         string Message::parseString(){
