@@ -31,13 +31,32 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
 {
     int *newmsg;
 
+    int result;
+
+    vector<clca::msg::Message> queue;
+
     while (1)
     {
-        char msg[305];
+        if(queue.empty()){
+            vector<char> msg(305);
 
-        int result = recv(local_socket, msg, /**TODO*/305, 0);
+            result = recv(local_socket, &msg[0], /**TODO*/305, 0);
 
-        clca::msg::Message servermessage(clca::msg::Message::buildFromString(msg));
+            vector<char>::iterator it=msg.begin();
+
+            while(1){
+                unique_ptr<clca::msg::Message> message(clca::msg::Message::fetchMessageFromString(it));
+
+                if(message == nullptr)
+                    break;
+
+                queue.insert(queue.begin(), *message);
+            }
+
+        }
+
+        clca::msg::Message servermessage=*(queue.end()-1);
+        queue.pop_back();
 
         m1.lock();
 
@@ -105,13 +124,31 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
 
     int *newmsg;
 
+    int result;
+
+    vector<clca::msg::Message> queue;
+
     while (1)
     {
-        char msg[305];
+        if(queue.empty()){
+            vector<char> msg(305);
 
-        int result = recv(acceptedSocket, msg, /**TODO*/305, 0);
+            result = recv(acceptedSocket, &msg[0], /**TODO*/305, 0);
 
-        clca::msg::Message clientmessage(clca::msg::Message::buildFromString(msg));
+            vector<char>::iterator it=msg.begin();
+
+            while(1){
+                unique_ptr<clca::msg::Message> message(clca::msg::Message::fetchMessageFromString(it));
+
+                if(message == nullptr)
+                    break;
+
+                queue.insert(queue.begin(), *message);
+            }
+        }
+
+        clca::msg::Message clientmessage=*(queue.end()-1);
+        queue.pop_back();
 
         m1.lock();
 

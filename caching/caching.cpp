@@ -335,39 +335,46 @@ namespace clca
             return *this;
         }
 
-        Message Message::buildFromString(string str){
-            Message msg;
-
-            istringstream _str(str);
+        Message *Message::fetchMessageFromString(vector<char>::iterator &str){
+            Message *msg = new Message();
 
             size_t text_size,own_size;
 
+            if(*str == '\0')
+                return nullptr;
+
+
             vector<char> input(9);
-            _str.read(&input[0],input.size()-1);
-            msg.setTimestamp(strtol(&input[0], NULL, 16));
+            copy(str, str + input.size()-1, input.begin());
+            msg->setTimestamp(strtol(&input[0], NULL, 16));
+            str+=input.size()-1;
             input.clear();
 
             input.resize(5);
-            _str.read(&input[0],input.size()-1);
-            msg.setType(static_cast<Type>(strtol(&input[0], NULL, 16 )));
+            copy(str, str + input.size()-1, input.begin());
+            msg->setType(static_cast<Type>(strtol(&input[0], NULL, 16 )));
+            str+=input.size()-1;
             input.clear();
 
             input.resize(3);
-            _str.read(&input[0],input.size()-1);
+            copy(str, str + input.size()-1, input.begin());
             text_size=strtol( &input[0], NULL, 16 );
+            str+=input.size()-1;
             input.clear();
 
             input.resize(3);
-            _str.read(&input[0],input.size()-1);
+            copy(str, str + input.size()-1, input.begin());
             own_size=strtol(&input[0], NULL, 16 );
+            str+=input.size()-1;
             input.clear();
 
             if(text_size==0)
                 goto no_text;
 
             input.resize(text_size+1);
-            _str.read(&input[0],text_size);
-            msg.appendText(&input[0]);
+            copy(str, str + text_size, input.begin());
+            msg->appendText(&input[0]);
+            str+=text_size;
             input.clear();
 
             no_text:
@@ -376,8 +383,9 @@ namespace clca
                 goto no_own;
 
             input.resize(own_size+1);
-            _str.read(&input[0],own_size);
-            msg.setOwner(&input[0]);
+            copy(str, str + own_size, input.begin());
+            msg->setOwner(&input[0]);
+            str+=own_size;
             input.clear();
 
             no_own:

@@ -1,2 +1,4 @@
-./server
-./client
+server
+client
+client.exe
+server.exe
