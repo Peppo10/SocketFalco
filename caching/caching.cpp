@@ -340,6 +340,8 @@ namespace clca
 
             size_t text_size,own_size;
 
+            const vector<char>::iterator str_copy=str;
+
             if(*str == '\0')
                 return nullptr;
 
@@ -365,6 +367,7 @@ namespace clca
                 str+=input.size()-1;
             }
             else{
+                str=str_copy;
                 return nullptr;
             }
 
@@ -378,6 +381,7 @@ namespace clca
                 str+=input.size()-1;
             }
             else{
+                str=str_copy;
                 return nullptr;
             }
 
@@ -391,6 +395,7 @@ namespace clca
                 str+=input.size()-1;
             }
             else{
+                str=str_copy;
                 return nullptr;
             }
 
@@ -407,6 +412,7 @@ namespace clca
                 str+=text_size;
             }
             else{
+                str=str_copy;
                 return nullptr;
             }
 
@@ -425,6 +431,7 @@ namespace clca
                 str+=own_size+1;
             }
             else{
+                str=str_copy;
                 return nullptr;
             }
 
