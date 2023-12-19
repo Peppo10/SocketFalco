@@ -35,7 +35,7 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
 
     vector<clca::msg::Message> queue;
 
-    vector<char> msg(305);
+    vector<char> msg(MESSAGE_MAX_SIZE);
 
     size_t msg_offset=0;
 
@@ -43,7 +43,7 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
     {
         if(queue.empty()){
 
-            result = recv(local_socket, &msg[msg_offset], /**TODO*/305-msg_offset, 0);
+            result = recv(local_socket, &msg[msg_offset], MESSAGE_MAX_SIZE-msg_offset, 0);
 
             vector<char>::iterator it=msg.begin();
 
@@ -53,7 +53,7 @@ void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag,
                 if(message == nullptr){
                     msg.erase(msg.begin(),it);
                     msg_offset = (*it == '\0') ? 0 : msg.size();
-                    msg.resize(305);
+                    msg.resize(MESSAGE_MAX_SIZE);
                     break;
                 }
 
@@ -135,7 +135,7 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
 
     vector<clca::msg::Message> queue;
 
-    vector<char> msg(305);
+    vector<char> msg(MESSAGE_MAX_SIZE);
 
     size_t msg_offset=0;
 
@@ -143,7 +143,7 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
     {
         if(queue.empty()){
 
-            result = recv(acceptedSocket, &msg[msg_offset], /**TODO*/305-msg_offset, 0);
+            result = recv(acceptedSocket, &msg[msg_offset], MESSAGE_MAX_SIZE-msg_offset, 0);
 
             vector<char>::iterator it=msg.begin();
 
@@ -153,7 +153,7 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
                 if(message == nullptr){
                     msg.erase(msg.begin(),it);
                     msg_offset = (*it == '\0') ? 0 : msg.size();
-                    msg.resize(305);
+                    msg.resize(MESSAGE_MAX_SIZE);
                     break;
                 }
 
@@ -189,7 +189,7 @@ void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_fla
                 clientuuid = clientmessage.getOwner();
             }
 #endif
-
+                notified=true;
                 cv.notify_one();
                 m1.unlock();
                 break;
@@ -259,4 +259,82 @@ void srv::handle_disconnect_message(clca::Chat &chat, mutex &m1, string input, i
     cout << "\033[G\033[K" << message;
     cout << "You:\033[s" << input << flush;
     m1.unlock();
+}
+
+int srv::start_session(clca::Chat &chat, _SOCKET socket, string &input, string username, mutex &m1, int &peer_connect, basic_string<_PATH_CHAR> &peer_uuid)
+{
+    do
+        {
+            input = "";
+            cout << "\033[s";
+
+            cin.clear();
+
+            while (!clca::msg::message_is_ready(input, username))
+            {
+            }
+
+            m1.lock();
+
+            if (input.length() > 0)
+            {
+                if (input == "quit")
+                {
+                    peer_connect = srv::DISCONNECT;
+                    _CLOSE_SOCKET(socket);
+                    m1.unlock();
+
+                    clca::save_chat(chat, peer_uuid);
+                    peer_uuid.clear();
+                    chat.clear();
+                    return EXIT_SUCCESS;
+                }
+                else
+                {
+                    clca::msg::Message ownmessage = srv::send_message((peer_connect != srv::CONNECT) ? clca::msg::Type::NEW_MESSAGE : clca::msg::Type::MESSAGE, socket, username.c_str(), input.c_str());
+                    
+                    chat.addMessage(ownmessage);
+                    cout << "\033[G\033[J";
+                    ownmessage.print();
+                }
+            }
+            else
+            {
+                cout << "\033[G\033[K";
+            }
+
+            m1.unlock();
+
+            cout << "You:";
+        } while (1);
+}
+
+void srv::send_new_message(_SOCKET socket,clca::Chat &chat, int file_flag, string username)
+{
+    size_t chat_size= chat.getSize();
+
+    if (file_flag > 0)
+    {
+        for (size_t i = chat_size - file_flag; i < chat_size; i++)
+        {
+            chat.getAt(i)._send(socket);
+            chat.getAt(i).setType(clca::msg::Type::MESSAGE);
+        }
+    }
+    else
+    {
+        clca::msg::Message ownmessage(clca::msg::Type::NEW_MESSAGE);
+        ownmessage.setOwner(username.c_str());
+        ownmessage.appendText("\0");
+        ownmessage._send(socket);
+    }
+
+    chat.consumeQueueMessages();
+}
+
+void srv::wait_peer(condition_variable &cv ,mutex &m1, bool &notified)
+{
+    unique_lock<mutex> ul(m1);
+    cv.wait(ul, [&notified] { return notified; });
+    notified = false;
 }

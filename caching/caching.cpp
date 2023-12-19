@@ -151,7 +151,7 @@ namespace clca
         }
     }
 
-    int Chat::getSize()
+    size_t Chat::getSize()
     {
         return this->messages.size();
     }
@@ -203,7 +203,7 @@ namespace clca
 
         chatcache.open(filedir.c_str(), fstream::in | fstream::out | fstream::trunc); // TODO create another file every time(it's not good for long chat)
 
-        for (int i = 0; i < chat.getSize(); i++)
+        for (size_t i = 0; i < chat.getSize(); i++)
         {
             msg::Message &msg = chat.getAt(i);
 
@@ -256,9 +256,10 @@ namespace clca
         return uuid;
     }
 
-    void fileSysSetup(int type)
+    int fileSysSetup(int type)
     {
-        setRootDir();
+        if(setRootDir() == PATH_NOT_FOUND)
+            return EXIT_FAILURE;
 
         root_dir = root_dir + (type == 0 ? _STR_FORMAT(/client) : _STR_FORMAT(/server));
 
@@ -266,12 +267,13 @@ namespace clca
         {
             if (filesystem::create_directory(root_dir))
             {
-                cout << "directory created!";
+                _STR_COUT << _STR_FORMAT(\033[38;2;255;255;0mDirectory \033[4m)<<root_dir<<_STR_FORMAT(\033[0m\033[38;2;255;255;0m created!\033[0m\n);
             }
         }
         catch (exception &e)
         {
             cout << e.what() << endl;
+            return EXIT_FAILURE;
         }
 
         auth_dir = root_dir + _STR_FORMAT(/auth);
@@ -280,12 +282,13 @@ namespace clca
         {
             if (filesystem::create_directory(auth_dir))
             {
-                cout << "directory created!";
+                _STR_COUT << _STR_FORMAT(\033[38;2;255;255;0mDirectory \033[4m)<<auth_dir<<_STR_FORMAT(\033[0m\033[38;2;255;255;0m created!\033[0m\n);
             }
         }
         catch (exception &e)
         {
             cout << e.what() << endl;
+            return EXIT_FAILURE;
         }
 
         cache_dir = root_dir + _STR_FORMAT(/cache);
@@ -294,13 +297,16 @@ namespace clca
         {
             if (filesystem::create_directory(cache_dir))
             {
-                cout << "directory created!";
+                _STR_COUT << _STR_FORMAT(\033[38;2;255;255;0mDirectory \033[4m)<<cache_dir<<_STR_FORMAT(\033[0m\033[38;2;255;255;0m created!\033[0m\n);
             }
         }
         catch (exception &e)
         {
             cout << e.what() << endl;
+            return EXIT_FAILURE;
         }
+
+        return EXIT_SUCCESS;
     }
 
     namespace msg
@@ -346,7 +352,7 @@ namespace clca
                 return nullptr;
 
 
-            vector<char> input(9);
+            vector<char> input(8 + 1); //data size * 2(because one char is half-byte(F)) + \0
             copy(str, str + input.size()-1, input.begin());
             msg->setTimestamp(strtol(&input[0], NULL, 16));
 
@@ -359,7 +365,7 @@ namespace clca
             
             input.clear();
 
-            input.resize(5);
+            input.resize(4 + 1); //data size * 2(because one char is half-byte(F)) + \0
             copy(str, str + input.size()-1, input.begin());
             msg->setType(static_cast<Type>(strtol(&input[0], NULL, 16 )));
             
@@ -373,7 +379,7 @@ namespace clca
 
             input.clear();
 
-            input.resize(3);
+            input.resize(2 + 1); //data size * 2(because one char is half-byte(F)) + \0
             copy(str, str + input.size()-1, input.begin());
             text_size=strtol( &input[0], NULL, 16 );
             
@@ -387,7 +393,7 @@ namespace clca
 
             input.clear();
 
-            input.resize(3);
+            input.resize(2 + 1); //data size * 2(because one char is half-byte(F)) + \0
             copy(str, str + input.size()-1, input.begin());
             own_size=strtol(&input[0], NULL, 16 );
             
@@ -404,7 +410,7 @@ namespace clca
             if(text_size==0)
                 goto no_text;
 
-            input.resize(text_size+1);
+            input.resize(text_size+1); //data size + \0
             copy(str, str + text_size, input.begin());
             msg->appendText(&input[0]);
             
@@ -423,7 +429,7 @@ namespace clca
             if(own_size==0)
                 goto no_own;
 
-            input.resize(own_size+1);
+            input.resize(own_size+1); //data size + \0
             copy(str, str + own_size, input.begin());
             msg->setOwner(&input[0]);
             
@@ -507,7 +513,7 @@ namespace clca
         string Message::parseString(){
             ostringstream _str;
 
-            _str<<hex
+            _str<<hex //i put hex value just for readability
                 <<setw(8)<<setfill('0')<<(0xFFFFFFFF & this->getTimestamp())
                 <<setw(4)<<setfill('0')<<(0xFFFF & this->getType())
                 <<setw(2)<<setfill('0')<<(0xFF & strlen(this->text))
@@ -561,7 +567,7 @@ namespace clca
             if ((ch == '\b') && (input.size() > 0))
                 input.pop_back();
 
-            cout << "\033[u\033[J" << input;
+            cout << "\033[u\033[K" << input;
 
 #elif __linux__
             struct termios oldt, newt;

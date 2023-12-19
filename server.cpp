@@ -59,39 +59,34 @@ WSADATA wsadata;
 WORD versionRequested = MAKEWORD(2, 2);
 #endif
 
-condition_variable cv_load_chat;
+condition_variable cv;
 mutex m1;
 
 string username = "Server";
 basic_string<_PATH_CHAR> clientuuid;
 clca::Chat chat;
-string newmessages = "";
-string newmessages_for_client = "";
-string input = "";
+string newmessages_for_client;
+string input;
 string uuid;
 
 int clientconnect = srv::DISCONNECT;
-int dirtyclient;
-bool notified;
+int file_flag;
+bool notified = false;
 
 int setup_server(int port);
 
 void send_auth();
 
-void send_new_message();
-
-void wait_client();
-
-void wait_client_auth();
-
 void prepareCUI();
+
+int setup();
+
+void load_data();
 
 int main()
 {
-    if (setup_server(PORT))
-        return -1;
-
-    clca::fileSysSetup(1);
+    if(setup())
+        return EXIT_FAILURE;
 
     while (1)
     {
@@ -120,75 +115,28 @@ int main()
 #endif
 
             clientconnect = srv::CONNECT;
+
+            // listening thread
+            new thread(srv::server_listen_reicvmessage, acceptedSocket, ref(clientconnect), ref(chat), ref(m1), ref(clientuuid), ref(cv), ref(notified), ref(input));
+
+            // wait for client auth
+            srv::wait_peer(cv, m1, notified);
+
+            load_data();
+
+            send_auth();
+
+            srv::wait_peer(cv, m1, notified);
+
+            srv::send_new_message(acceptedSocket, chat, file_flag, username);
+
+            prepareCUI();
+
+            srv::start_session(chat, acceptedSocket, input, username, m1, clientconnect, clientuuid);
+
+            chat.clearQueue();
         }
 
-        notified = false;
-
-        new thread(srv::server_listen_reicvmessage, acceptedSocket, ref(clientconnect), ref(chat), ref(m1), ref(clientuuid), ref(cv_load_chat), ref(notified), ref(input));
-
-        wait_client_auth();
-
-        send_auth();
-
-        wait_client();
-
-        send_new_message();
-
-        prepareCUI();
-
-        do
-        {
-            input = "";
-            cout << "\033[s";
-
-            cin.clear();
-
-            while (!clca::msg::message_is_ready(input, username))
-            {
-            }
-
-            m1.lock();
-
-            if (input.length() > 0)
-            {
-                if (input == "quit")
-                {
-                    clientconnect = srv::DISCONNECT;
-                    _CLOSE_SOCKET(acceptedSocket);
-                    m1.unlock();
-
-                    clca::save_chat(chat, clientuuid);
-                    clientuuid.clear();
-                    chat.clear();
-                    newmessages = "";
-                    break;
-                }
-                else
-                {
-                    clca::msg::Message ownmessage((clientconnect != srv::CONNECT) ? clca::msg::Type::NEW_MESSAGE : clca::msg::Type::MESSAGE);
-                    ownmessage.setOwner(username.c_str());
-                    ownmessage.appendText(input.c_str());
-                    chat.addMessage(ownmessage);
-                    cout << "\033[G\033[J";
-                    ownmessage.print();
-
-                    if (clientconnect == srv::CONNECT)
-                    {
-                        ownmessage._send(acceptedSocket);
-                    }
-                }
-            }
-            else
-            {
-                cout << "\033[G\033[K";
-            }
-
-            m1.unlock();
-
-            cout << "You:";
-        } while (1);
-
-        chat.clearQueue();
         system(_CLEAR);
         cout << "listening on port " << PORT << "..." << endl;
     }
@@ -197,7 +145,7 @@ int main()
     WSACleanup();
 #endif
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 int setup_server(int port)
@@ -267,14 +215,14 @@ int setup_server(int port)
         cout << "listening on port " << port << "..." << endl;
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 void send_auth()
 {
     string auth;
 
-    switch (dirtyclient)
+    switch (file_flag)
     {
     case FILE_ALREADY_EXISTS:
         auth = "\033[38;2;0;255;0mUser authenticated, loading the chat...\033[0m";
@@ -288,48 +236,13 @@ void send_auth()
         break;
     }
 
-    clca::msg::Message ownmessage(clca::msg::Type::AUTH);
-    ownmessage.setOwner(uuid.c_str());
-    ownmessage.appendText(auth.c_str());
-
-    if (dirtyclient > 0)
+    if (file_flag > 0)
     {
-        ownmessage.appendText("-");
-        ownmessage.appendText(to_string(dirtyclient).c_str());
+        srv::send_message(clca::msg::AUTH, acceptedSocket, uuid.c_str(), auth.c_str(), "-", to_string(file_flag).c_str());
     }
-
-    ownmessage._send(acceptedSocket);
-}
-
-void send_new_message()
-{
-    size_t chatSize = chat.getSize();
-    if (dirtyclient > 0)
-    {
-        for (size_t i = chatSize - dirtyclient; i < chatSize; i++)
-        {
-            chat.getAt(i)._send(acceptedSocket);
-            chat.getAt(i).setType(clca::msg::Type::MESSAGE);
-        }
+    else{
+        srv::send_message(clca::msg::AUTH, acceptedSocket, uuid.c_str(),auth.c_str());
     }
-    else
-    {
-        clca::msg::Message ownmessage(clca::msg::Type::NEW_MESSAGE);
-        ownmessage.setOwner(username.c_str());
-        ownmessage.appendText("\0");
-        ownmessage._send(acceptedSocket);
-    }
-
-    chat.consumeQueueMessages();
-}
-
-void wait_client()
-{
-    unique_lock<mutex> ul(m1);
-    cv_load_chat.wait(ul, []
-                      { return notified; });
-
-    notified = false;
 }
 
 void prepareCUI()
@@ -338,17 +251,19 @@ void prepareCUI()
     cout << "You:";
 }
 
-void wait_client_auth()
-{
+int setup(){
+    if(clca::fileSysSetup(1))
+        return EXIT_FAILURE;
 
-    unique_lock<mutex> ul(m1);
-    cv_load_chat.wait(ul, []
-                      { return (clientuuid.empty()) ? false : true; });
+    if (setup_server(PORT))
+        return EXIT_FAILURE;
 
+    return EXIT_SUCCESS;
+}
+
+void load_data(){
     if (clca::loadUUID(1, username, uuid) == FILE_NOT_ALREADY_EXISTS)
-    {
         uuid = clca::genUUID(username);
-    }
 
-    dirtyclient = clca::load_chat(chat, clientuuid);
+    file_flag = clca::load_chat(chat, clientuuid);
 }

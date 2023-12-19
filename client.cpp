@@ -22,7 +22,6 @@ SOFTWARE.*/
 #ifdef _WIN32
 #include <ws2tcpip.h>
 
-#define _CLOSE_SOCKET closesocket
 #define _SOCKET_INV INVALID_SOCKET
 #define _SOCKET_ERR SOCKET_ERROR
 #define _CLEAR "cls"
@@ -30,7 +29,6 @@ SOFTWARE.*/
 #include <arpa/inet.h>
 #include <sys/types.h>
 
-#define _CLOSE_SOCKET close
 #define _SOCKET_INV -1
 #define _SOCKET_ERR -1
 #define _CLEAR "clear"
@@ -54,20 +52,19 @@ WSADATA wsadata;
 WORD versionRequested = MAKEWORD(2, 2);
 #endif
 
-condition_variable cv_print_message;
+condition_variable cv;
 mutex m1;
 
 clca::Chat chat;
-string newmessages = "";
-string newmessages_for_server = "";
-string input = "";
+string newmessages;
+string newmessages_for_server;
+string input;
 string username;
 basic_string<_PATH_CHAR> serveruuid;
 string uuid;
 
-int connection_flag;
-int serverconnect = srv::DISCONNECT, fileflag;
-bool notified;
+int serverconnect = srv::DISCONNECT, file_flag;
+bool notified = false;
 
 int try_connection(in_addr, u_short);
 
@@ -75,13 +72,11 @@ void send_auth();
 
 void send_info();
 
-void send_new_message();
-
-void wait_server();
-
 void handle_new_user();
 
-void prepareCUI();
+void prepare_CUI();
+
+void setup();
 
 int main(int argc, char *argv[])
 {
@@ -91,102 +86,45 @@ int main(int argc, char *argv[])
         cout << "Only one argument <ip-address> is accepted" << endl;
         return EXIT_FAILURE;
     }
-
-    clca::fileSysSetup(0);
+    
+    setup();
 
     in_addr sin_addr;
-
     inet_pton(AF_INET, argv[1], &sin_addr);
 
-    if (clca::loadUUID(0, username, uuid) == FILE_NOT_ALREADY_EXISTS)
-    {
-        handle_new_user();
-        uuid = clca::genUUID(username);
-    }
-
-    cout << "\033[38;2;255;255;0mWelcome " << username << "!\033[0m\n";
-
-    if ((connection_flag = try_connection(sin_addr, 30000)) == FAILED_TO_CONNECT)
+    if (try_connection(sin_addr, 30000) == FAILED_TO_CONNECT)
     {
         cout << "\033[38;2;255;0;0mCANNOT CONNECT TO THE SERVER\n";
-        cout << "write your message here, on the next session the server will receive it\033[0m\n";
-        cout << "You:";
+        return EXIT_FAILURE;
     }
     else
     {
-        notified = false;
-
         // listening thread
-        new thread(srv::client_listen_reicvmessage, local_socket, ref(serverconnect), ref(chat), ref(m1), ref(serveruuid), ref(cv_print_message), ref(notified), ref(input));
+        new thread(srv::client_listen_reicvmessage, local_socket, ref(serverconnect), ref(chat), ref(m1), ref(serveruuid), ref(cv), ref(notified), ref(input));
 
         // this snippet is thread safe because the server will not send anything until it receive the AUTH message from client
         send_auth();
 
-        wait_server();
+        srv::wait_peer(cv, m1, notified);
 
         send_info();
 
         //TCP should ensure server receives the info first ? (Header Sequence number)
 
-        send_new_message();
+        srv::send_new_message(local_socket, chat, file_flag, username);
 
-        wait_server();
+        srv::wait_peer(cv, m1, notified);
 
-        prepareCUI();
+        prepare_CUI();
+
+        srv::start_session(chat, local_socket, input, username, m1, serverconnect, serveruuid);
     }
-
-    do
-    {
-        input = "";
-        cout << "\033[s";
-
-        cin.clear();
-
-        while (!clca::msg::message_is_ready(input, username))
-        {
-        }
-
-        m1.lock();
-
-        if (input.length() > 0)
-        {
-            if (input == "quit")
-            {
-                serverconnect = srv::DISCONNECT;
-                _CLOSE_SOCKET(local_socket);
-                m1.unlock();
-
-                clca::save_chat(chat, serveruuid);
-
-                return EXIT_SUCCESS;
-            }
-            else
-            {
-                clca::msg::Message ownmessage((connection_flag == FAILED_TO_CONNECT) || (serverconnect != srv::CONNECT) ? clca::msg::Type::NEW_MESSAGE : clca::msg::Type::MESSAGE);
-                ownmessage.setOwner(username.c_str());
-                ownmessage.appendText(input.c_str());
-                chat.addMessage(ownmessage);
-                cout << "\033[G\033[J";
-                ownmessage.print();
-
-                if (serverconnect == srv::CONNECT)
-                {
-                    ownmessage._send(local_socket);
-                }
-            }
-        }
-        else
-        {
-            cout << "\033[G\033[K";
-        }
-
-        m1.unlock();
-        cout << "You:";
-    } while (1);
 
 #ifdef _WIN32
     WSACleanup();
 #endif
+
+    return EXIT_SUCCESS;
 }
 
 int try_connection(in_addr ip_address, u_short port)
@@ -228,60 +166,26 @@ int try_connection(in_addr ip_address, u_short port)
 
 void send_auth()
 {
-    clca::msg::Message ownmessage(clca::msg::Type::AUTH);
-    ownmessage.setOwner(uuid.c_str());
-    ownmessage._send(local_socket);
+    srv::send_message(clca::msg::AUTH, local_socket, uuid.c_str(),"");
 }
 
 void send_info(){
-    fileflag = clca::load_chat(chat, serveruuid);
+    file_flag = clca::load_chat(chat, serveruuid);
 
-    clca::msg::Message ownmessage(clca::msg::Type::INFO);
-    ownmessage.setOwner(username.c_str());
-
-    if (fileflag > 0)
+    if (file_flag > 0)
     {
-        ownmessage.appendText("new-");
-        ownmessage.appendText(to_string(fileflag).c_str());
+        srv::send_message(clca::msg::INFO, local_socket, username.c_str(),"new-",to_string(file_flag).c_str());
     }
-
-    ownmessage._send(local_socket);
-}
-
-void send_new_message()
-{
-    size_t chatSize = chat.getSize();
-    if (fileflag > 0)
-    {
-        for (size_t i = chatSize - fileflag; i < chatSize; i++)
-        {
-            chat.getAt(i)._send(local_socket);
-            chat.getAt(i).setType(clca::msg::Type::MESSAGE);
-        }
-    }
-    else
-    {
-        clca::msg::Message ownmessage(clca::msg::Type::NEW_MESSAGE);
-        ownmessage.setOwner(username.c_str());
-        ownmessage.appendText("\0");
-        ownmessage._send(local_socket);
+    else{
+        srv::send_message(clca::msg::INFO, local_socket, username.c_str(),"");
     }
 }
 
-void prepareCUI()
+void prepare_CUI()
 {
     chat.consumeQueueMessages();
     chat.print();
     cout << "You:";
-}
-
-void wait_server()
-{
-    unique_lock<mutex> ul(m1);
-    cv_print_message.wait(ul, []
-                          { return notified; });
-
-    notified = false;
 }
 
 void handle_new_user()
@@ -294,4 +198,16 @@ void handle_new_user()
         cout << "Enter your name(MAX 15 character):";
         getline(cin, username);
     } while (username.length() > 15 && username.length() > 0);
+
+    //generate uuid and save it 
+    uuid = clca::genUUID(username);
+}
+
+void setup(){
+    clca::fileSysSetup(0);
+
+    if (clca::loadUUID(0, username, uuid) == FILE_NOT_ALREADY_EXISTS)
+        handle_new_user();
+
+    cout << "\033[38;2;255;255;0mWelcome " << username << "!\033[0m\n";
 }

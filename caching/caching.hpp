@@ -35,6 +35,7 @@ typedef SOCKET _SOCKET;
 #define _STR_LEN wcslen
 #define _STR_CAT wcscat
 #define _STR_FORMAT(str) L## #str
+#define _STR_COUT wcout
 typedef wchar_t _PATH_CHAR;
 #elif __linux
 #include <limits.h>
@@ -48,6 +49,7 @@ typedef int _SOCKET;
 #define _STR_LEN strlen
 #define _STR_CAT strcat
 #define _STR_FORMAT(str) #str
+#define _STR_COUT cout
 typedef char _PATH_CHAR;
 #endif
 
@@ -61,11 +63,12 @@ typedef char _PATH_CHAR;
 #include <random>
 
 #define BUFSIZE 255
+#define OWNERZIZE 34
+#define MESSAGE_MAX_SIZE BUFSIZE + OWNERZIZE + 8 + 4 + 2 + 2 + 1
 #define PATH_NOT_FOUND -3
 #define PATH_FOUND -2
 #define FILE_ALREADY_EXISTS 0
 #define FILE_NOT_ALREADY_EXISTS -1
-#define OWNERZIZE 34
 
 using namespace std;
 
@@ -167,7 +170,7 @@ namespace clca
 
         void print();
 
-        int getSize();
+        size_t getSize();
     };
 
     int load_chat(Chat &chat, basic_string<_PATH_CHAR> filename);
@@ -178,7 +181,7 @@ namespace clca
 
     int save_chat(clca::Chat chat, basic_string<_PATH_CHAR> filename);
 
-    void fileSysSetup(int type);
+    int fileSysSetup(int type);
 }
 
 #endif
