@@ -181,7 +181,7 @@ namespace clca
 
     int save_chat(clca::Chat chat, basic_string<_PATH_CHAR> filename);
 
-    int fileSysSetup(int type);
+    int fileSysSetup();
 }
 
 #endif

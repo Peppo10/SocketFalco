@@ -252,7 +252,7 @@ void prepareCUI()
 }
 
 int setup(){
-    if(clca::fileSysSetup(1))
+    if(clca::fileSysSetup())
         return EXIT_FAILURE;
 
     if (setup_server(PORT))

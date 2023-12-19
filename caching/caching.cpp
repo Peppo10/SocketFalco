@@ -256,12 +256,12 @@ namespace clca
         return uuid;
     }
 
-    int fileSysSetup(int type)
+    int fileSysSetup()
     {
         if(setRootDir() == PATH_NOT_FOUND)
             return EXIT_FAILURE;
 
-        root_dir = root_dir + (type == 0 ? _STR_FORMAT(/client) : _STR_FORMAT(/server));
+        root_dir = root_dir + _STR_FORMAT(/Socket-realtime-cached-chat);
 
         try
         {

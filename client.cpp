@@ -204,7 +204,7 @@ void handle_new_user()
 }
 
 void setup(){
-    clca::fileSysSetup(0);
+    clca::fileSysSetup();
 
     if (clca::loadUUID(0, username, uuid) == FILE_NOT_ALREADY_EXISTS)
         handle_new_user();
