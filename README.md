@@ -16,7 +16,8 @@ Every device at first start-up will generate his uuid4, wich will be used for th
 
 
 ## NOTE
-* if you want to save the chat you MUST exit by typing "quit" on the console.
+* If you want to save the chat you MUST exit by typing "quit" on the console.
+* Server can support localhost connection, you're just chatting with your device(cache file is the same).
 
 ## DIAGRAM
 ![Diagramma senza titolo drawio (2)](https://github.com/Peppo10/Socket-realtime-cached-chat/assets/131891564/273fdd11-c3d1-43b9-b956-5c404040b58b)
