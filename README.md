@@ -4,11 +4,11 @@ This is a realtime chat that uses Win/Linux api to manage sockets and create tcp
 You have the possibility also to write message in offline mode when client or server quit the session. When the connection is re-established the peers will send the new messages each other.
 
 # Running
-From client side you must pass the server ip address by argument.
+* From client side you must pass the server ip address by argument.
 
-`client.exe <ip-address>`
+  `client.exe <ip-address>`
 
-From server side you can just run it.
+* From server side you can just run it.
 
 
 ## NOTE
