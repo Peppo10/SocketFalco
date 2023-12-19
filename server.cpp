@@ -238,10 +238,10 @@ void send_auth()
 
     if (file_flag > 0)
     {
-        srv::send_message(clca::msg::AUTH, acceptedSocket, uuid.c_str(), auth.c_str(), "-", to_string(file_flag).c_str());
+        srv::send_message(clientconnect, clca::msg::AUTH, acceptedSocket, uuid.c_str(), auth.c_str(), "-", to_string(file_flag).c_str());
     }
     else{
-        srv::send_message(clca::msg::AUTH, acceptedSocket, uuid.c_str(),auth.c_str());
+        srv::send_message(clientconnect ,clca::msg::AUTH, acceptedSocket, uuid.c_str(),auth.c_str());
     }
 }
 

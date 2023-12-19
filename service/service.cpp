@@ -291,7 +291,7 @@ int srv::start_session(clca::Chat &chat, _SOCKET socket, string &input, string u
                 }
                 else
                 {
-                    clca::msg::Message ownmessage = srv::send_message((peer_connect != srv::CONNECT) ? clca::msg::Type::NEW_MESSAGE : clca::msg::Type::MESSAGE, socket, username.c_str(), input.c_str());
+                    clca::msg::Message ownmessage = srv::send_message(peer_connect, (peer_connect != srv::CONNECT) ? clca::msg::Type::NEW_MESSAGE : clca::msg::Type::MESSAGE, socket, username.c_str(), input.c_str());
                     
                     chat.addMessage(ownmessage);
                     cout << "\033[G\033[J";
@@ -323,10 +323,7 @@ void srv::send_new_message(_SOCKET socket,clca::Chat &chat, int file_flag, strin
     }
     else
     {
-        clca::msg::Message ownmessage(clca::msg::Type::NEW_MESSAGE);
-        ownmessage.setOwner(username.c_str());
-        ownmessage.appendText("\0");
-        ownmessage._send(socket);
+        srv::send_message(srv::CONNECT, clca::msg::NEW_MESSAGE, socket, username.c_str(),"");
     }
 
     chat.consumeQueueMessages();

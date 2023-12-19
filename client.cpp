@@ -166,7 +166,7 @@ int try_connection(in_addr ip_address, u_short port)
 
 void send_auth()
 {
-    srv::send_message(clca::msg::AUTH, local_socket, uuid.c_str(),"");
+    srv::send_message(serverconnect, clca::msg::AUTH, local_socket, uuid.c_str(),"");
 }
 
 void send_info(){
@@ -174,10 +174,10 @@ void send_info(){
 
     if (file_flag > 0)
     {
-        srv::send_message(clca::msg::INFO, local_socket, username.c_str(),"new-",to_string(file_flag).c_str());
+        srv::send_message(serverconnect, clca::msg::INFO, local_socket, username.c_str(),"new-",to_string(file_flag).c_str());
     }
     else{
-        srv::send_message(clca::msg::INFO, local_socket, username.c_str(),"");
+        srv::send_message(serverconnect, clca::msg::INFO, local_socket, username.c_str(),"");
     }
 }
 

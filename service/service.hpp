@@ -65,15 +65,17 @@ namespace srv
     void wait_peer(condition_variable &cv ,mutex &m1, bool &notified);
 
     template <typename... breadCrumbs>
-    clca::msg::Message send_message(clca::msg::Type type, _SOCKET socket, const char* username, breadCrumbs... crumbs) {
+    clca::msg::Message send_message(int connection_flag, clca::msg::Type type, _SOCKET socket, const char* username, breadCrumbs... crumbs) {
         clca::msg::Message ownmessage(type);
         ownmessage.setOwner(username);
 
         for(const char* crumb : {crumbs...}) {
             ownmessage.appendText(crumb);
         }
+        
+        if(connection_flag == CONNECT) //i need this check to avoid Broken Pipe Error
+            ownmessage._send(socket);
 
-        ownmessage._send(socket);
         return ownmessage;
     }
 }
