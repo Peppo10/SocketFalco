@@ -16,4 +16,6 @@ From server side you can just run it.
 * if you want to save the chat you MUST exit by typing "quit" on the console.
 
 ## DIAGRAM
-![Diagramma senza titolo drawio](https://github.com/Peppo10/WinApi-socket-realtime-cached-chat/assets/131891564/951c5e3a-8a11-4025-b210-67f746cfb683)
+![Diagramma senza titolo drawio (2)](https://github.com/Peppo10/Socket-realtime-cached-chat/assets/131891564/273fdd11-c3d1-43b9-b956-5c404040b58b)
+
+
