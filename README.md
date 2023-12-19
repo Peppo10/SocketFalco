@@ -3,6 +3,10 @@ This is a realtime chat that uses Win/Linux api to manage sockets and create tcp
 
 You have the possibility also to write message in offline mode when client or server quit the session. When the connection is re-established the peers will send the new messages each other.
 
+Every chat is unique and depends on the uuid of the device is connected to.
+
+Every device at first start-up will generate his uuid4, wich will be used for the authentication.
+
 # Running
 * From client side you must pass the server ip address by argument.
 
