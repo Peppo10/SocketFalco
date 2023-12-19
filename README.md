@@ -12,7 +12,6 @@ From server side you can just run it.
 
 
 ## NOTE
-* For this current version the client can support only one server caching.
 * if you want to save the chat you MUST exit by typing "quit" on the console.
 
 ## DIAGRAM
