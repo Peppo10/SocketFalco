@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
 
     if (try_connection(sin_addr, 30000) == FAILED_TO_CONNECT)
     {
-        cout << "\033[38;2;255;0;0mCANNOT CONNECT TO THE SERVER\n";
+        cout << "\033[38;2;255;0;0mCANNOT CONNECT TO THE SERVER\033[0m\n";
         return EXIT_FAILURE;
     }
     else
