@@ -10,7 +10,7 @@ Every device at first start-up will generate his uuid4, wich will be used for th
 # Running
 * From client side you must pass the server ip address by argument.
 
-  `client.exe <ip-address>`
+  `client <ip-address>`
 
 * From server side you can just run it.
 
