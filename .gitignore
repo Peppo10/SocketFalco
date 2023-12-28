@@ -1,4 +1,2 @@
-server
-client
-client.exe
-server.exe
+socket_realtime_cached_chat.exe
+socket_realtime_cached_chat

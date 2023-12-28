@@ -27,7 +27,7 @@ SOFTWARE.*/
 #include <condition_variable>
 #include <mutex>
 #include <cstdarg>
-#include "../caching/caching.hpp"
+#include "caching.hpp"
 
 
 #ifdef _WIN32
@@ -64,7 +64,7 @@ namespace srv
 
     void wait_peer(condition_variable &cv ,mutex &m1, bool &notified);
 
-    template <typename... breadCrumbs>
+    template <typename... breadCrumbs> 
     clca::msg::Message send_message(int connection_flag, clca::msg::Type type, _SOCKET socket, const char* username, breadCrumbs... crumbs) {
         clca::msg::Message ownmessage(type);
         ownmessage.setOwner(username);

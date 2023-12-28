@@ -8,9 +8,9 @@
             "name": "(gdb) Launch WIN",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/${fileBasenameNoExtension}.exe",
+            "program": "${workspaceFolder}/src/${fileBasenameNoExtension}.exe",
             "args": [
-                "192.168.1.9"
+                "-l"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

@@ -182,6 +182,14 @@ namespace clca
     int save_chat(clca::Chat chat, basic_string<_PATH_CHAR> filename);
 
     int fileSysSetup();
+
+    basic_string<_PATH_CHAR> getRootDir();
+
+    basic_string<_PATH_CHAR> getCacheDir();
+    
+    basic_string<_PATH_CHAR> getAuthDir();
+
+    int update_name(string name);
 }
 
 #endif

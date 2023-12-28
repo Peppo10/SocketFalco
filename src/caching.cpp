@@ -20,7 +20,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
 
-#include "caching.hpp"
+#include "../include/caching.hpp"
 
 basic_string<_PATH_CHAR> root_dir;
 basic_string<_PATH_CHAR> cache_dir;
@@ -170,6 +170,8 @@ namespace clca
             dirtyflag = FILE_ALREADY_EXISTS;
             string line;
 
+            chatcache.ignore(OWNERZIZE, '\n');
+
             while (getline(chatcache, line))
             {
                 msg::Message message(msg::Type::MESSAGE);
@@ -203,6 +205,7 @@ namespace clca
 
         chatcache.open(filedir.c_str(), fstream::in | fstream::out | fstream::trunc); // TODO create another file every time(it's not good for long chat)
 
+        chatcache << chat.getAt(chat.getSize()-1).getOwner() << endl;
         for (size_t i = 0; i < chat.getSize(); i++)
         {
             msg::Message &msg = chat.getAt(i);
@@ -215,6 +218,38 @@ namespace clca
         chatcache.clear();
 
         return 1;
+    }
+
+    int update_name(string name){
+        if(name.length() > 15){
+            cout << name << " is too long(max 15 characters)"<<endl;
+            return EXIT_FAILURE;
+        }
+        else if(name.length() < 1){
+            cout << "at least one character!"<<endl;
+            return EXIT_FAILURE;
+        }
+
+        fstream f((getAuthDir() + _STR_FORMAT(/uuid)).c_str(), fstream::in);
+        
+        string oldname,uuid;
+
+        getline(f, oldname);
+        getline(f, uuid);
+
+        f.close();
+
+        f.open((getAuthDir() + _STR_FORMAT(/uuid)).c_str(), fstream::out | fstream::trunc);
+
+        f << name << endl;
+        f << uuid << endl;
+
+        f.close();
+
+        cout<<"\033[38;2;255;255;0mUsername succesfully updated!\033[0m\n";
+        cout<< oldname << " -> " << name << endl;
+
+        return EXIT_SUCCESS;
     }
 
     int loadUUID(int type, string &myname, string &uuid)
@@ -307,6 +342,39 @@ namespace clca
         }
 
         return EXIT_SUCCESS;
+    }
+
+    basic_string<_PATH_CHAR> getRootDir(){
+        if(root_dir.empty()){
+            if(fileSysSetup() == EXIT_SUCCESS)
+                return root_dir;
+            else
+                return _STR_FORMAT();
+        }
+
+        return root_dir;
+    }
+
+    basic_string<_PATH_CHAR> getCacheDir(){
+        if(cache_dir.empty()){
+            if(fileSysSetup() == EXIT_SUCCESS)
+                return cache_dir;
+            else
+                return _STR_FORMAT();
+        }
+
+        return cache_dir;
+    }
+    
+    basic_string<_PATH_CHAR> getAuthDir(){
+        if(auth_dir.empty()){
+            if(fileSysSetup() == EXIT_SUCCESS)
+                return auth_dir;
+            else
+                return _STR_FORMAT();
+        }
+
+        return auth_dir;
     }
 
     namespace msg
