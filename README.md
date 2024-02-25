@@ -5,7 +5,7 @@ You have the possibility also to write message in offline mode when client or se
 
 Every chat is unique and depends on the uuid of the device connected to. Does not matter who is the server or the client, the chat will be the same.
 
-Every device at first start-up will generate his uuid4, wich will be used for the authentication.
+Every device at first start-up will generate his uuid4, which will be used for the authentication.
 
 # Running
 * From client side you must pass the server ip address by argument.
