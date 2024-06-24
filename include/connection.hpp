@@ -23,12 +23,15 @@ SOFTWARE.*/
 #ifndef CONNECTION_HPP
 #define CONNECTION_HPP
 
+#include "caching.hpp"
+#include <condition_variable>
+#include <mutex>
+
 #ifdef _WIN32
 #include <ws2tcpip.h>
-#include "service.hpp"
 #include <thread>
-#define FAILED_TO_CONNECT 404
 
+#define FAILED_TO_CONNECT 404
 #define _SOCKET_INV INVALID_SOCKET
 #define _SOCKET_ERR SOCKET_ERROR
 #define _CLEAR "cls"
@@ -47,31 +50,56 @@ typedef u_int _ADDR_LEN;
 
 using namespace std;
 
-//CLIENT
-_SOCKET local_socket;
-sockaddr_in remote_socket_addr; // socket address romote side
+enum connection_type_list
+    {
+        CONNECT_WITH_NEW_MESSAGE,
+        CONNECT,
+        DISCONNECT
+    };
 
-//SERVER
-_SOCKET acceptedSocket;
-sockaddr_in service;  // socket address for listening server socket
-_ADDR_LEN client_addr_len = sizeof(sockaddr_in);
+class Session
+{
+private:
+    static Session* instance;
 
-#ifdef _WIN32
-WSADATA wsadata;
-WORD versionRequested = MAKEWORD(2, 2);
-#endif
+public:
+    //CLIENT
+    _SOCKET remote_socket;
+    sockaddr_in remote_socket_addr; // socket address remote side
 
-condition_variable cv;
-mutex m1;
+    //SERVER
+    _SOCKET listen_socket;
+    sockaddr_in local_socket_addr;  // socket address for listening server socket
+    _ADDR_LEN client_addr_len = sizeof(sockaddr_in);
 
-clca::Chat chat;
-string input;
-string username;
-basic_string<_PATH_CHAR> remote_uuid;
-string uuid;
+    #ifdef _WIN32
+    WSADATA wsadata;
+    WORD versionRequested = MAKEWORD(2, 2);
+    #endif
 
-int remote_connect = srv::DISCONNECT;
-int file_flag;
-bool notified = false;
+    condition_variable cv;
+    mutex m1;
+
+    clca::Chat chat;
+    string input;
+    string uuid;
+    string username;
+    basic_string<_PATH_CHAR> remote_uuid;
+    string remote_username;
+
+    int remote_connect = DISCONNECT;
+    int file_flag;
+    bool notified = false;
+
+    Session(const Session& obj) = delete;
+
+    Session(){}
+
+    static Session* getInstance();
+
+    static void clearInstance();
+};
+
+int add_new_messages(string remote);
 
 #endif

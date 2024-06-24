@@ -142,12 +142,15 @@ namespace clca
         return const_cast<msg::Message &>(*l_front);
     }
 
-    void Chat::print()
+    void Chat::print(boolean normalize)
     {
         for (auto it = this->messages.begin(); it != this->messages.end(); ++it)
         {
             msg::Message &msg = const_cast<msg::Message &>(*it);
             msg.print();
+
+            if(normalize)
+                msg.normalize();
         }
     }
 
@@ -158,7 +161,7 @@ namespace clca
 
     int load_chat(Chat &chat, basic_string<_PATH_CHAR> filename)
     {
-        basic_string<_PATH_CHAR> filedir = cache_dir + _STR_FORMAT(/) + filename;
+        basic_string<_PATH_CHAR> filedir = getCacheDir() + _STR_FORMAT(/) + filename;
 
         if (!(chatcache = fstream(filedir.c_str())))
         {
@@ -201,7 +204,7 @@ namespace clca
 
     int save_chat(Chat chat, basic_string<_PATH_CHAR> filename)
     {
-        basic_string<_PATH_CHAR> filedir = cache_dir + _STR_FORMAT(/) + filename;
+        basic_string<_PATH_CHAR> filedir = getCacheDir() + _STR_FORMAT(/) + filename;
 
         chatcache.open(filedir.c_str(), fstream::in | fstream::out | fstream::trunc); // TODO create another file every time(it's not good for long chat)
 
@@ -254,7 +257,7 @@ namespace clca
 
     int loadUUID(int type, string &myname, string &uuid)
     {
-        basic_string<_PATH_CHAR> filedir = auth_dir + _STR_FORMAT(/uuid);
+        basic_string<_PATH_CHAR> filedir = getAuthDir() + _STR_FORMAT(/uuid);
 
         if (!(chatcache = fstream(filedir.c_str())))
         {
@@ -278,7 +281,7 @@ namespace clca
     {
         string uuid = _UUID();
 
-        basic_string<_PATH_CHAR> filedir = auth_dir + _STR_FORMAT(/uuid);
+        basic_string<_PATH_CHAR> filedir = getAuthDir() + _STR_FORMAT(/uuid);
 
         chatcache.open(filedir.c_str(), fstream::in | fstream::out | fstream::trunc);
 
@@ -550,7 +553,7 @@ namespace clca
 
             tms << "[" << timeInfo->tm_mday
                 << "/" << timeInfo->tm_mon + 1
-                << "/" << (timeInfo->tm_year % 100) << " "
+                << "/" << (timeInfo->tm_year + 1900) << " "
                 << timeInfo->tm_hour << ":" << ((timeInfo->tm_min < 10) ? "0" : "")
                 << timeInfo->tm_min << "]";
 
@@ -606,7 +609,6 @@ namespace clca
         void Message::print()
         {
             cout << this->getDecodedTimestamp() << " " << this->getOwner() << ": " << this->getContent() << ((this->type == msg::Type::NEW_MESSAGE) ? "\033[38;2;255;255;0m \xFEnew\xFE\033[0m" : "") << endl;
-            this->normalize();
         }
 
         void Message::normalize()

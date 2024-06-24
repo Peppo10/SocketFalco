@@ -168,7 +168,7 @@ namespace clca
 
         msg::Message &getAt(int index);
 
-        void print();
+        void print(boolean normalize);
 
         size_t getSize();
     };

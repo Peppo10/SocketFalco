@@ -24,25 +24,23 @@ SOFTWARE.*/
 #define SERVER_H
 
 #include "connection.hpp"
+#include "service.hpp"
+
+Session* serverSession;
 
 int setup_server(int port)
 {
 #ifdef _WIN32
-    if (WSAStartup(versionRequested, &wsadata))
+    if (WSAStartup(serverSession->versionRequested, &(serverSession->wsadata)))
     {
         cout << "dll file not found" << endl;
         return -1;
     }
-    else
-    {
-        cout << "dll file found!" << endl;
-        cout << wsadata.szSystemStatus << endl;
-    }
 #endif
 
-    local_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    serverSession->listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-    if (local_socket == _SOCKET_INV)
+    if (serverSession->listen_socket == _SOCKET_INV)
     {
 #ifdef _WIN32
         cout << "Error at socket(): " << WSAGetLastError() << endl;
@@ -52,16 +50,12 @@ int setup_server(int port)
 
         return -2;
     }
-    else
-    {
-        cout << "socket() is OK!" << endl;
-    }
 
-    service.sin_addr.s_addr = htonl(INADDR_ANY); // listen for all interfaces
-    service.sin_port = htons(port);              // set the port
-    service.sin_family = AF_INET;                // set the family
+    serverSession->local_socket_addr.sin_addr.s_addr = htonl(INADDR_ANY); // listen for all interfaces
+    serverSession->local_socket_addr.sin_port = htons(port);              // set the port
+    serverSession->local_socket_addr.sin_family = AF_INET;                // set the family
 
-    if (bind(local_socket, (sockaddr *)&service, sizeof(service)) == _SOCKET_ERR)
+    if (bind(serverSession->listen_socket, (sockaddr *)&(serverSession->local_socket_addr), sizeof(serverSession->local_socket_addr)) == _SOCKET_ERR)
     {
 #ifdef _WIN32
         cout << "bind() failed! " << WSAGetLastError() << endl;
@@ -69,7 +63,7 @@ int setup_server(int port)
         cout << "bind() failed!, exit code: " << _SOCKET_ERR << endl;
 #endif
 
-        _CLOSE_SOCKET(local_socket);
+        _CLOSE_SOCKET(serverSession->listen_socket);
 
 #ifdef _WIN32
         WSACleanup();
@@ -77,29 +71,26 @@ int setup_server(int port)
 
         return -3;
     }
-    else
-    {
-        cout << "bind() is OK!" << endl;
-    }
 
-    if (listen(local_socket, 3) == _SOCKET_ERR)
+    if (listen(serverSession->listen_socket, 3) == _SOCKET_ERR)
     {
         cout << "listen(): Error listen on socket!" << endl;
         return -4;
     }
     else
     {
-        cout << "listening on port " << port << "..." << endl;
+        cout << "\033[38;2;100;100;255mServer setup succesfully!\033[0m";
+        cout << "\nlistening on port " << port << "..." << endl;
     }
 
     return EXIT_SUCCESS;
 }
 
-void send_auth_s()
+void send_auth_()
 {
     string auth;
 
-    switch (file_flag)
+    switch (serverSession->file_flag)
     {
     case FILE_ALREADY_EXISTS:
         auth = "\033[38;2;0;255;0mUser authenticated, loading the chat...\033[0m";
@@ -113,22 +104,22 @@ void send_auth_s()
         break;
     }
 
-    if (file_flag > 0)
+    if (serverSession->file_flag > 0)
     {
-        srv::send_message(remote_connect, clca::msg::AUTH, acceptedSocket, uuid.c_str(), auth.c_str(), "-", to_string(file_flag).c_str());
+        srv::send_message(clca::msg::AUTH, serverSession->uuid.c_str(), auth.c_str(), "-", to_string(serverSession->file_flag).c_str());
     }
     else{
-        srv::send_message(remote_connect ,clca::msg::AUTH, acceptedSocket, uuid.c_str(),auth.c_str());
+        srv::send_message(clca::msg::AUTH, serverSession->uuid.c_str(),auth.c_str());
     }
 }
 
 void prepareCUI()
 {
-    chat.print();
+    serverSession->chat.print(true);
     cout << "You:";
 }
 
-int setup_s(){
+int setup_(){
     if(clca::fileSysSetup())
         return EXIT_FAILURE;
 
@@ -139,23 +130,26 @@ int setup_s(){
 }
 
 void load_data(){
-    if (clca::loadUUID(1, username, uuid) == FILE_NOT_ALREADY_EXISTS)
-        uuid = clca::genUUID(username);
+    if (clca::loadUUID(1, serverSession->username, serverSession->uuid) == FILE_NOT_ALREADY_EXISTS)
+        serverSession->uuid = clca::genUUID(serverSession->username);
 
-    file_flag = clca::load_chat(chat, remote_uuid);
+    serverSession->file_flag = clca::load_chat(serverSession->chat, serverSession->remote_uuid);
 }
 
 int start_server()
 {
-    if(setup_s())
+    serverSession = Session::getInstance();
+    
+    if(setup_())
         return EXIT_FAILURE;
 
     while (1)
     {
-        acceptedSocket = accept(local_socket, (sockaddr *)&remote_socket_addr, &client_addr_len);
+        serverSession->remote_socket = accept(serverSession->listen_socket, (sockaddr *)&(serverSession->remote_socket_addr), &(serverSession->client_addr_len));
+
         system(_CLEAR);
 
-        if (acceptedSocket == _SOCKET_INV)
+        if (serverSession->remote_socket == _SOCKET_INV)
         {
             cout << "Error! invalid socket!" << endl;
         }
@@ -164,43 +158,42 @@ int start_server()
 
 #ifdef _WIN32
             cout << "Connection established! with "
-                 << int(remote_socket_addr.sin_addr.S_un.S_un_b.s_b1)
+                 << int(serverSession->remote_socket_addr.sin_addr.S_un.S_un_b.s_b1)
                  << "."
-                 << int(remote_socket_addr.sin_addr.S_un.S_un_b.s_b2)
+                 << int(serverSession->remote_socket_addr.sin_addr.S_un.S_un_b.s_b2)
                  << "."
-                 << int(remote_socket_addr.sin_addr.S_un.S_un_b.s_b3)
+                 << int(serverSession->remote_socket_addr.sin_addr.S_un.S_un_b.s_b3)
                  << "."
-                 << int(remote_socket_addr.sin_addr.S_un.S_un_b.s_b4) << endl;
+                 << int(serverSession->remote_socket_addr.sin_addr.S_un.S_un_b.s_b4) << endl;
 #elif __linux__
             cout << "Connection established! with "
-                 << int(remote_socket_addr.sin_addr.s_addr) << endl;
+                 << int(serverSession->remote_socket_addr.sin_addr.s_addr) << endl;
 #endif
 
-            remote_connect = srv::CONNECT;
+            serverSession->remote_connect = CONNECT;
 
             // listening thread
-            new thread(srv::server_listen_reicvmessage, acceptedSocket, ref(remote_connect), ref(chat), ref(m1), ref(remote_uuid), ref(cv), ref(notified), ref(input));
+            new thread(srv::server_listen_reicvmessage);
 
             // wait for client auth
-            srv::wait_peer(cv, m1, notified);
+            srv::wait_peer();
 
             load_data();
 
-            send_auth_s();
+            send_auth_();
 
-            srv::wait_peer(cv, m1, notified);
+            srv::wait_peer();
 
-            srv::send_new_message(acceptedSocket, chat, file_flag, username);
+            srv::send_new_message();
 
             prepareCUI();
 
-            srv::start_session(chat, acceptedSocket, input, username, m1, remote_connect, remote_uuid);
-
-            chat.clearQueue();
+            srv::start_session();
         }
 
         system(_CLEAR);
         cout << "listening on port " << PORT << "..." << endl;
+        Session::clearInstance();
     }
 
 #ifdef _WIN32

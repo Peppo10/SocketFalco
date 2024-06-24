@@ -24,32 +24,35 @@ SOFTWARE.*/
 #define CLIENT_H
 
 #include "connection.hpp"
+#include "service.hpp"
+
+Session* clientSession;
 
 int try_connection(in_addr ip_address, u_short port)
 {
 #ifdef _WIN32
-    if (int result = WSAStartup(versionRequested, &wsadata))
+    if (int result = WSAStartup(clientSession->versionRequested, &(clientSession->wsadata)))
     {
         cout << "Error during set-up: " << result << endl;
     }
 #endif
 
-    local_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    clientSession->remote_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-    if (local_socket == _SOCKET_INV)
+    if (clientSession->remote_socket == _SOCKET_INV)
     {
 #ifdef _WIN32
         cout << "Error at socket(): " << WSAGetLastError() << endl;
 #elif __linux__
-        cout << "Error at socket(), exit code: " << local_socket << endl;
+        cout << "Error at socket(), exit code: " << clientSession->local_socket << endl;
 #endif
     }
 
-    remote_socket_addr.sin_family = AF_INET;
-    remote_socket_addr.sin_port = htons(port);
-    remote_socket_addr.sin_addr = ip_address;
+    clientSession->remote_socket_addr.sin_family = AF_INET;
+    clientSession->remote_socket_addr.sin_port = htons(port);
+    clientSession->remote_socket_addr.sin_addr = ip_address;
 
-    if (connect(local_socket, (sockaddr *)&remote_socket_addr, sizeof(remote_socket_addr)) == _SOCKET_ERR)
+    if (connect(clientSession->remote_socket, (sockaddr *)&(clientSession->remote_socket_addr), sizeof(clientSession->remote_socket_addr)) == _SOCKET_ERR)
     {
 #ifdef _WIN32
         WSACleanup();
@@ -57,58 +60,59 @@ int try_connection(in_addr ip_address, u_short port)
         return FAILED_TO_CONNECT;
     }
 
-    remote_connect = srv::CONNECT;
+    clientSession->remote_connect = CONNECT;
 
     return 1;
 }
 
 void send_auth()
 {
-    srv::send_message(remote_connect, clca::msg::AUTH, local_socket, uuid.c_str(),"");
+    srv::send_message(clca::msg::AUTH, clientSession->uuid.c_str(),"");
 }
 
 void send_info(){
-    file_flag = clca::load_chat(chat, remote_uuid);
+    clientSession->file_flag = clca::load_chat(clientSession->chat, clientSession->remote_uuid);
 
-    if (file_flag > 0)
+    if (clientSession->file_flag > 0)
     {
-        srv::send_message(remote_connect, clca::msg::INFO, local_socket, username.c_str(),"new-",to_string(file_flag).c_str());
+        srv::send_message(clca::msg::INFO, clientSession->username.c_str(),"new-",to_string(clientSession->file_flag).c_str());
     }
     else{
-        srv::send_message(remote_connect, clca::msg::INFO, local_socket, username.c_str(),"");
+        srv::send_message(clca::msg::INFO, clientSession->username.c_str(),"");
     }
 }
 
 void prepare_CUI()
 {
-    chat.consumeQueueMessages();
-    chat.print();
+    clientSession->chat.consumeQueueMessages();
+    clientSession->chat.print(true);
     cout << "You:";
 }
 
 void handle_new_user()
 {
+    string* username=&(clientSession->username);
     do
     {
-        username = "";
+        *username = "";
         system(_CLEAR);
         cout << "\033[38;2;255;255;0mFIRST ACCESS\033[0m\n";
         cout << "Enter your name(MAX 15 character):";
-        getline(cin, username);
-    } while (username.length() > 15 && username.length() > 0);
+        getline(cin, *username);
+    } while ((*username).length() > 15 && (*username).length() > 0);
 
     //generate uuid and save it 
-    uuid = clca::genUUID(username);
+    clientSession->uuid = clca::genUUID(*username);
 }
 
 int setup(){
     if(clca::fileSysSetup())
         return EXIT_FAILURE;
 
-    if (clca::loadUUID(0, username, uuid) == FILE_NOT_ALREADY_EXISTS)
+    if (clca::loadUUID(0, clientSession->username, clientSession->uuid) == FILE_NOT_ALREADY_EXISTS)
         handle_new_user();
 
-    cout << "\033[38;2;255;255;0mWelcome " << username << "!\033[0m\n";
+    cout << "\033[38;2;255;255;0mWelcome " << clientSession->username << "!\033[0m\n";
 
     return EXIT_SUCCESS;
 }
@@ -121,6 +125,8 @@ int start_client(int argc, char *argv[])
         cout << "Only one argument <ip-address> is accepted" << endl;
         return EXIT_FAILURE;
     }
+
+    clientSession = Session::getInstance();
     
     if(setup())
         return EXIT_FAILURE;
@@ -128,7 +134,7 @@ int start_client(int argc, char *argv[])
     in_addr sin_addr;
     inet_pton(AF_INET, argv[0], &sin_addr);
 
-    if (try_connection(sin_addr, 30000) == FAILED_TO_CONNECT)
+    if (try_connection(sin_addr, PORT) == FAILED_TO_CONNECT)
     {
         cout << "\033[38;2;255;0;0mCANNOT CONNECT TO THE SERVER\033[0m\n";
         return EXIT_FAILURE;
@@ -136,24 +142,24 @@ int start_client(int argc, char *argv[])
     else
     {
         // listening thread
-        new thread(srv::client_listen_reicvmessage, local_socket, ref(remote_connect), ref(chat), ref(m1), ref(remote_uuid), ref(cv), ref(notified), ref(input));
+        new thread(srv::client_listen_reicvmessage);
 
         // this snippet is thread safe because the server will not send anything until it receive the AUTH message from client
         send_auth();
 
-        srv::wait_peer(cv, m1, notified);
+        srv::wait_peer();
 
         send_info();
 
         //TCP should ensure server receives the info first ? (Header Sequence number)
 
-        srv::send_new_message(local_socket, chat, file_flag, username);
+        srv::send_new_message();
 
-        srv::wait_peer(cv, m1, notified);
+        srv::wait_peer();
 
         prepare_CUI();
 
-        srv::start_session(chat, local_socket, input, username, m1, remote_connect, remote_uuid);
+        srv::start_session();
     }
 
 #ifdef _WIN32

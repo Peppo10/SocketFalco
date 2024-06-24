@@ -26,199 +26,7 @@ char CLIENT_DISCONNECT[] = "\033[38;2;255;0;0mThe client is disconnected\033[0m\
 char SERVER_DISCONNECT[] = "\033[38;2;255;0;0mThe server is disconnected\033[0m\n";
 char CHAT_LOAD_WITH_NEW_MESSAGES[] = "\033[38;2;0;255;0mUser authenticated, loading the chat with \033[4mnew messages!\033[0m";
 
-void srv::client_listen_reicvmessage(_SOCKET local_socket, int &connection_flag, clca::Chat &chat, mutex &m1, basic_string<_PATH_CHAR> &serveruuid, condition_variable &cv, bool &notified, string &input)
-{
-    int *newmsg;
-
-    int result;
-
-    vector<clca::msg::Message> queue;
-
-    vector<char> msg(MESSAGE_MAX_SIZE);
-
-    size_t msg_offset=0;
-
-    while (1)
-    {
-        if(queue.empty()){
-
-            result = recv(local_socket, &msg[msg_offset], MESSAGE_MAX_SIZE-msg_offset, 0);
-
-            vector<char>::iterator it=msg.begin();
-
-            while(1){
-                unique_ptr<clca::msg::Message> message(clca::msg::Message::fetchMessageFromString(it,msg.end()));
-
-                if(message == nullptr){
-                    msg.erase(msg.begin(),it);
-                    msg_offset = (*it == '\0') ? 0 : msg.size();
-                    msg.resize(MESSAGE_MAX_SIZE);
-                    break;
-                }
-
-                queue.insert(queue.begin(), *message);
-            }
-
-        }
-
-        clca::msg::Message servermessage=*(queue.end()-1);
-        queue.pop_back();
-
-        m1.lock();
-
-        if (connection_flag == DISCONNECT)
-        { // i use this because i wanna notify the user for the lost connection only if the server quit
-            m1.unlock();
-            break;
-        }
-
-        if (result > 0)
-        {
-            switch (servermessage.getType())
-            {
-            case clca::msg::Type::AUTH:
-
-#ifdef _WIN32
-            {
-                std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-                serveruuid = converter.from_bytes(servermessage.getOwner());
-            }
-#elif __linux__
-            {
-                serveruuid = servermessage.getOwner();
-            }
-#endif
-
-                servermessage.setOwner("Server");
-                servermessage.print();
-
-                if ((servermessage.getContent() == nullptr) || (servermessage.getContent()[0] == '\0'))
-                {
-                    goto notify;
-                }
-
-                if (strcmp(strtok(servermessage.getContent(), "-"), CHAT_LOAD_WITH_NEW_MESSAGES) == 0)
-                    newmsg = new int(stoi(strtok(NULL, "-")));
-
-            notify:
-
-                notified = true;
-                cv.notify_one();
-                m1.unlock();
-                break;
-            case clca::msg::Type::INFO:
-                cerr << "INFO message not handled by client" << endl;
-                break; 
-            case clca::msg::Type::MESSAGE:
-                handle_message(servermessage, chat, m1, input);
-                break;
-            case clca::msg::Type::NEW_MESSAGE:
-                handle_new_messages(servermessage, notified, chat, cv, m1, newmsg);
-                break;
-            }
-        }
-        else
-        {
-            handle_disconnect_message(chat, m1, input, connection_flag, SERVER_DISCONNECT);
-            break;
-        }
-    }
-}
-
-void srv::server_listen_reicvmessage(_SOCKET acceptedSocket, int &connection_flag, clca::Chat &chat, mutex &m1, basic_string<_PATH_CHAR> &clientuuid, condition_variable &cv, bool &notified, string &input)
-{
-
-    int *newmsg;
-
-    int result;
-
-    vector<clca::msg::Message> queue;
-
-    vector<char> msg(MESSAGE_MAX_SIZE);
-
-    size_t msg_offset=0;
-
-    while (1)
-    {
-        if(queue.empty()){
-
-            result = recv(acceptedSocket, &msg[msg_offset], MESSAGE_MAX_SIZE-msg_offset, 0);
-
-            vector<char>::iterator it=msg.begin();
-
-            while(1){
-                unique_ptr<clca::msg::Message> message(clca::msg::Message::fetchMessageFromString(it,msg.end()));
-
-                if(message == nullptr){
-                    msg.erase(msg.begin(),it);
-                    msg_offset = (*it == '\0') ? 0 : msg.size();
-                    msg.resize(MESSAGE_MAX_SIZE);
-                    break;
-                }
-
-                queue.insert(queue.begin(), *message);
-            }
-
-        }
-
-        clca::msg::Message clientmessage=*(queue.end()-1);
-        queue.pop_back();
-
-        m1.lock();
-
-        if (connection_flag == DISCONNECT)
-        { // i use this because i wanna notify the user for the lost connection only if the client quit
-            m1.unlock();
-            break;
-        }
-
-        if (result > 0)
-        {
-            switch (clientmessage.getType())
-            {
-            case clca::msg::Type::AUTH:
-
-#ifdef _WIN32
-            {
-                std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-                clientuuid = converter.from_bytes(clientmessage.getOwner());
-            }
-#elif __linux__
-            {
-                clientuuid = clientmessage.getOwner();
-            }
-#endif
-                notified=true;
-                cv.notify_one();
-                m1.unlock();
-                break;
-            case clca::msg::Type::INFO:
-
-                if (clientmessage.getContent()[0] != '\0')
-                {
-                    if (strcmp(strtok(clientmessage.getContent(), "-"), "new") == 0)
-                        newmsg = new int(stoi(strtok(NULL, "-")));
-                }
-
-                m1.unlock();
-                break;    
-            case clca::msg::Type::MESSAGE:
-                handle_message(clientmessage, chat, m1, input);
-                break;
-            case clca::msg::Type::NEW_MESSAGE:
-                handle_new_messages(clientmessage, notified, chat, cv, m1, newmsg);
-                break;
-            }
-        }
-        else
-        {
-            handle_disconnect_message(chat, m1, input, connection_flag, CLIENT_DISCONNECT);
-            break;
-        }
-    }
-}
-
-void srv::handle_new_messages(clca::msg::Message newMessage, bool &notified, clca::Chat &chat, condition_variable &cv, mutex &m1, int *newmsg)
+void handle_new_messages(clca::msg::Message newMessage, bool &notified, clca::Chat &chat, condition_variable &cv, mutex &m1, int *newmsg)
 {
     if (strcmp(newMessage.getContent(), "\0") == 0)
     {
@@ -243,7 +51,7 @@ void srv::handle_new_messages(clca::msg::Message newMessage, bool &notified, clc
     m1.unlock();
 }
 
-void srv::handle_message(clca::msg::Message newMessage, clca::Chat &chat, mutex &m1, string input)
+void handle_message(clca::msg::Message newMessage, clca::Chat &chat, mutex &m1, string input)
 {
     chat.addMessage(newMessage);
     cout << "\033[G\033[K";
@@ -252,7 +60,7 @@ void srv::handle_message(clca::msg::Message newMessage, clca::Chat &chat, mutex 
     m1.unlock();
 }
 
-void srv::handle_disconnect_message(clca::Chat &chat, mutex &m1, string input, int &connection_flag, char message[])
+void handle_disconnect_message(clca::Chat &chat, mutex &m1, string input, int &connection_flag, char message[])
 {
     connection_flag = DISCONNECT;
     cout << "\033[G\033[K" << message;
@@ -260,77 +68,302 @@ void srv::handle_disconnect_message(clca::Chat &chat, mutex &m1, string input, i
     m1.unlock();
 }
 
-int srv::start_session(clca::Chat &chat, _SOCKET socket, string &input, string username, mutex &m1, int &peer_connect, basic_string<_PATH_CHAR> &peer_uuid)
+void srv::client_listen_reicvmessage()
 {
-    do
+    Session *session = Session::getInstance();
+
+    int *newmsg;
+
+    int result;
+
+    vector<clca::msg::Message> queue;
+
+    vector<char> msg(MESSAGE_MAX_SIZE);
+
+    size_t msg_offset = 0;
+
+    while (1)
+    {
+        if (queue.empty())
         {
-            input = "";
-            cout << "\033[s";
 
-            cin.clear();
+            result = recv(session->remote_socket, &msg[msg_offset], MESSAGE_MAX_SIZE - msg_offset, 0);
+            
+            /*if(result == -1){
+                cerr << "Error during connection! Error code: "<< WSAGetLastError();
+                exit(-1);
+            }*/
 
-            while (!clca::msg::message_is_ready(input, username))
+            vector<char>::iterator it = msg.begin();
+
+            while (1)
             {
+                unique_ptr<clca::msg::Message> message(clca::msg::Message::fetchMessageFromString(it, msg.end()));
+
+                if (message == nullptr)
+                {
+                    msg.erase(msg.begin(), it);
+                    msg_offset = (*it == '\0') ? 0 : msg.size();
+                    msg.resize(MESSAGE_MAX_SIZE);
+                    break;
+                }
+
+                queue.insert(queue.begin(), *message);
             }
+        }
 
-            m1.lock();
+        clca::msg::Message servermessage = *(queue.end() - 1);
+        queue.pop_back();
 
-            if (input.length() > 0)
+        session->m1.lock();
+
+        if (session->remote_connect == DISCONNECT)
+        { // i use this because i wanna notify the user for the lost connection only if the server quit
+            session->m1.unlock();
+            break;
+        }
+
+        if (result > 0)
+        {
+            switch (servermessage.getType())
             {
-                if (input == "quit")
-                {
-                    peer_connect = srv::DISCONNECT;
-                    _CLOSE_SOCKET(socket);
-                    m1.unlock();
+            case clca::msg::Type::AUTH:
 
-                    clca::save_chat(chat, peer_uuid);
-                    peer_uuid.clear();
-                    chat.clear();
-                    return EXIT_SUCCESS;
-                }
-                else
+#ifdef _WIN32
+            {
+                std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+                session->remote_uuid = converter.from_bytes(servermessage.getOwner());
+            }
+#elif __linux__
+            {
+                session->remote_uuid = servermessage.getOwner();
+            }
+#endif
+
+                servermessage.setOwner("Server");
+                servermessage.print();
+
+                if ((servermessage.getContent() == nullptr) || (servermessage.getContent()[0] == '\0'))
                 {
-                    clca::msg::Message ownmessage = srv::send_message(peer_connect, (peer_connect != srv::CONNECT) ? clca::msg::Type::NEW_MESSAGE : clca::msg::Type::MESSAGE, socket, username.c_str(), input.c_str());
-                    
-                    chat.addMessage(ownmessage);
-                    cout << "\033[G\033[J";
-                    ownmessage.print();
+                    goto notify;
                 }
+
+                if (strcmp(strtok(servermessage.getContent(), "-"), CHAT_LOAD_WITH_NEW_MESSAGES) == 0)
+                    newmsg = new int(stoi(strtok(NULL, "-")));
+
+            notify:
+
+                session->notified = true;
+                session->cv.notify_one();
+                session->m1.unlock();
+                break;
+            case clca::msg::Type::INFO:
+                cerr << "INFO message not handled by client" << endl;
+                break;
+            case clca::msg::Type::MESSAGE:
+                handle_message(servermessage, session->chat, session->m1, session->input);
+                break;
+            case clca::msg::Type::NEW_MESSAGE:
+                handle_new_messages(servermessage, session->notified, session->chat, session->cv, session->m1, newmsg);
+                break;
+            }
+        }
+        else
+        {
+            handle_disconnect_message(session->chat, session->m1, session->input, session->remote_connect, SERVER_DISCONNECT);
+            break;
+        }
+    }
+}
+
+void srv::server_listen_reicvmessage()
+{
+    Session *session = Session::getInstance();
+
+    int *newmsg;
+
+    int result;
+
+    vector<clca::msg::Message> queue;
+
+    vector<char> msg(MESSAGE_MAX_SIZE);
+
+    size_t msg_offset = 0;
+
+    while (1)
+    {
+        if (queue.empty())
+        {
+
+            result = recv(session->remote_socket, &msg[msg_offset], MESSAGE_MAX_SIZE - msg_offset, 0);
+
+            /*if(result == -1){
+                cerr << "Error during connection! Error code: "<< WSAGetLastError();
+                exit(-1);
+            }*/
+
+            vector<char>::iterator it = msg.begin();
+
+            while (1)
+            {
+                unique_ptr<clca::msg::Message> message(clca::msg::Message::fetchMessageFromString(it, msg.end()));
+
+                if (message == nullptr)
+                {
+                    msg.erase(msg.begin(), it);
+                    msg_offset = (*it == '\0') ? 0 : msg.size();
+                    msg.resize(MESSAGE_MAX_SIZE);
+                    break;
+                }
+
+                queue.insert(queue.begin(), *message);
+            }
+        }
+
+        clca::msg::Message clientmessage = *(queue.end() - 1);
+        queue.pop_back();
+
+        session->m1.lock();
+
+        if (session->remote_connect == DISCONNECT)
+        { // i use this because i wanna notify the user for the lost connection only if the client quit
+            session->m1.unlock();
+            break;
+        }
+
+        if (result > 0)
+        {
+            switch (clientmessage.getType())
+            {
+            case clca::msg::Type::AUTH:
+
+#ifdef _WIN32
+            {
+                std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+                session->remote_uuid = converter.from_bytes(clientmessage.getOwner());
+            }
+#elif __linux__
+            {
+                session->remote_uuid = clientmessage.getOwner();
+            }
+#endif
+                session->notified = true;
+                session->cv.notify_one();
+                session->m1.unlock();
+                break;
+            case clca::msg::Type::INFO:
+
+                if (clientmessage.getContent()[0] != '\0')
+                {
+                    if (strcmp(strtok(clientmessage.getContent(), "-"), "new") == 0)
+                        newmsg = new int(stoi(strtok(NULL, "-")));
+                }
+
+                session->m1.unlock();
+                break;
+            case clca::msg::Type::MESSAGE:
+                handle_message(clientmessage, session->chat, session->m1, session->input);
+                break;
+            case clca::msg::Type::NEW_MESSAGE:
+                handle_new_messages(clientmessage, session->notified, session->chat, session->cv, session->m1, newmsg);
+                break;
+            }
+        }
+        else
+        {
+            handle_disconnect_message(session->chat, session->m1, session->input, session->remote_connect, CLIENT_DISCONNECT);
+            break;
+        }
+    }
+}
+
+int srv::start_session()
+{
+    Session *session = Session::getInstance();
+    clca::Chat &chat = session->chat;
+    string &input = session->input;
+    mutex &m1 = session->m1;
+    _SOCKET socket = session->remote_socket;
+    string username = session->username;
+    int &peer_connect = session->remote_connect;
+    basic_string<_PATH_CHAR> &peer_uuid = session->remote_uuid;
+
+    do
+    {
+        input = "";
+        cout << "\033[s";
+
+        cin.clear();
+
+        while (!clca::msg::message_is_ready(input, username))
+        {
+        }
+
+        m1.lock();
+
+        if (input.length() > 0)
+        {
+            if (input == "quit")
+            {
+                peer_connect = DISCONNECT;
+                _CLOSE_SOCKET(socket);
+                m1.unlock();
+
+                clca::save_chat(chat, peer_uuid);
+                peer_uuid.clear();
+                chat.clear();
+                return EXIT_SUCCESS;
             }
             else
             {
-                cout << "\033[G\033[K";
+                clca::msg::Message ownmessage = srv::send_message((peer_connect != CONNECT) ? clca::msg::Type::NEW_MESSAGE : clca::msg::Type::MESSAGE, username.c_str(), input.c_str());
+
+                chat.addMessage(ownmessage);
+                cout << "\033[G\033[J";
+                ownmessage.print();
             }
+        }
+        else
+        {
+            cout << "\033[G\033[K";
+        }
 
-            m1.unlock();
+        m1.unlock();
 
-            cout << "You:";
-        } while (1);
+        cout << "You:";
+    } while (1);
 }
 
-void srv::send_new_message(_SOCKET socket,clca::Chat &chat, int file_flag, string username)
+void srv::send_new_message()
 {
-    size_t chat_size= chat.getSize();
+    Session *session = Session::getInstance();
+    clca::Chat &chat = session->chat;
+    size_t chat_size = chat.getSize();
+    int file_flag = session->file_flag;
+    string username = session->username;
 
     if (file_flag > 0)
     {
         for (size_t i = chat_size - file_flag; i < chat_size; i++)
         {
-            chat.getAt(i)._send(socket);
+            chat.getAt(i)._send(session->remote_socket);
             chat.getAt(i).setType(clca::msg::Type::MESSAGE);
         }
     }
     else
     {
-        srv::send_message(srv::CONNECT, clca::msg::NEW_MESSAGE, socket, username.c_str(),"");
+        srv::send_message(clca::msg::NEW_MESSAGE, username.c_str(), "");
     }
 
     chat.consumeQueueMessages();
 }
 
-void srv::wait_peer(condition_variable &cv ,mutex &m1, bool &notified)
+void srv::wait_peer()
 {
-    unique_lock<mutex> ul(m1);
-    cv.wait(ul, [&notified] { return notified; });
+    Session *session = Session::getInstance();
+    unique_lock<mutex> ul(session->m1);
+    bool &notified = session->notified;
+    session->cv.wait(ul, [&notified]
+                     { return notified; });
     notified = false;
 }

@@ -10,7 +10,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/${fileBasenameNoExtension}.exe",
             "args": [
-                "-l"
+                "-l",
+                //"127.0.0.1"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

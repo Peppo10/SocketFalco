@@ -12,6 +12,7 @@
 				"${file}",
 				"${fileDirname}\\service.cpp",
 				"${fileDirname}\\caching.cpp",
+				"${fileDirname}\\connection.cpp",
 				"-o",
 				"${fileDirname}\\${fileBasenameNoExtension}.exe",
 				"-static",
@@ -42,6 +43,7 @@
 				"${file}",
 				"${fileDirname}/service.cpp",
 				"${fileDirname}/caching.cpp",
+				"${fileDirname}/connection.cpp",
 				"-o",
 				"${fileDirname}/${fileBasenameNoExtension}",
 				"-lpthread"
