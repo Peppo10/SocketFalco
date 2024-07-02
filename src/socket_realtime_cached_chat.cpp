@@ -51,9 +51,9 @@ int main(int argc, char *argv[])
             return clca::update_name(argv[2]);
         }
 
-        /*if((strcmp(argv[1],"-new_message") == 0) || (strcmp(argv[1],"-nm") == 0)){
+        if((strcmp(argv[1],"-new_message") == 0) || (strcmp(argv[1],"-nm") == 0)){
             return add_new_messages(argv[2]);
-        }*/
+        }
 
         cout << "Invalid arguments";
         return EXIT_FAILURE;

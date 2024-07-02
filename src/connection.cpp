@@ -41,7 +41,7 @@ int add_new_messages(string remote)
                 }
                 else
                 {
-                    clca::msg::Message ownmessage = srv::send_message(clca::msg::Type::NEW_MESSAGE, NULL, username.c_str(), input.c_str());
+                    clca::msg::Message ownmessage = srv::send_message(clca::msg::Type::NEW_MESSAGE, username.c_str(), input.c_str());
 
                     chat.addMessage(ownmessage);
                     cout << "\033[G\033[J";
