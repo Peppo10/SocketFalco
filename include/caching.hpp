@@ -64,6 +64,7 @@ typedef char _PATH_CHAR;
 
 #define BUFSIZE 255
 #define OWNERZIZE 34
+#define IPSIZE 39
 #define MESSAGE_MAX_SIZE BUFSIZE + OWNERZIZE + 8 + 4 + 2 + 2 + 1
 #define PATH_NOT_FOUND -3
 #define PATH_FOUND -2

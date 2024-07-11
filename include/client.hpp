@@ -141,17 +141,17 @@ int start_client(int argc, char *argv[])
     }
     else
     {
-        // listening thread
+        //listening thread
         new thread(srv::client_listen_reicvmessage);
 
-        // this snippet is thread safe because the server will not send anything until it receive the AUTH message from client
+        //this snippet is thread safe because the server will not send anything until it receive the AUTH message from client
         send_auth();
 
         srv::wait_peer();
 
         send_info();
 
-        //TCP should ensure server receives the info first ? (Header Sequence number)
+        //TCP should ensure server receives the info first (Header Sequence number)
 
         srv::send_new_message();
 

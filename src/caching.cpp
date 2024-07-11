@@ -21,6 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
 
 #include "../include/caching.hpp"
+#include "../include/connection.hpp"
 
 basic_string<_PATH_CHAR> root_dir;
 basic_string<_PATH_CHAR> cache_dir;
@@ -85,12 +86,13 @@ int setRootDir()
         }
         else
         {
-            root_dir=path;
+            root_dir = path;
             root_dir.append("/.local/share");
         }
     }
-    else{
-        root_dir=path;
+    else
+    {
+        root_dir = path;
     }
 #endif
     return PATH_FOUND;
@@ -149,7 +151,7 @@ namespace clca
             msg::Message &msg = const_cast<msg::Message &>(*it);
             msg.print();
 
-            if(normalize)
+            if (normalize)
                 msg.normalize();
         }
     }
@@ -174,6 +176,7 @@ namespace clca
             string line;
 
             chatcache.ignore(OWNERZIZE, '\n');
+            chatcache.ignore(IPSIZE+1, '\n');
 
             while (getline(chatcache, line))
             {
@@ -208,7 +211,12 @@ namespace clca
 
         chatcache.open(filedir.c_str(), fstream::in | fstream::out | fstream::trunc); // TODO create another file every time(it's not good for long chat)
 
-        chatcache << chat.getAt(chat.getSize()-1).getOwner() << endl;
+        Session* session = Session::getInstance();
+
+        chatcache << chat.getAt(chat.getSize() - 1).getOwner() << endl;
+        chatcache << std::setfill('0') << std::setw(IPSIZE) << int(session->remote_socket_addr.sin_addr.S_un.S_addr) << endl;
+
+
         for (size_t i = 0; i < chat.getSize(); i++)
         {
             msg::Message &msg = chat.getAt(i);
@@ -223,19 +231,22 @@ namespace clca
         return 1;
     }
 
-    int update_name(string name){
-        if(name.length() > 15){
-            cout << name << " is too long(max 15 characters)"<<endl;
+    int update_name(string name)
+    {
+        if (name.length() > 15)
+        {
+            cout << name << " is too long(max 15 characters)" << endl;
             return EXIT_FAILURE;
         }
-        else if(name.length() < 1){
-            cout << "at least one character!"<<endl;
+        else if (name.length() < 1)
+        {
+            cout << "at least one character!" << endl;
             return EXIT_FAILURE;
         }
 
         fstream f((getAuthDir() + _STR_FORMAT(/uuid)).c_str(), fstream::in);
-        
-        string oldname,uuid;
+
+        string oldname, uuid;
 
         getline(f, oldname);
         getline(f, uuid);
@@ -249,8 +260,8 @@ namespace clca
 
         f.close();
 
-        cout<<"\033[38;2;255;255;0mUsername succesfully updated!\033[0m\n";
-        cout<< oldname << " -> " << name << endl;
+        cout << "\033[38;2;255;255;0mUsername succesfully updated!\033[0m\n";
+        cout << oldname << " -> " << name << endl;
 
         return EXIT_SUCCESS;
     }
@@ -296,7 +307,7 @@ namespace clca
 
     int fileSysSetup()
     {
-        if(setRootDir() == PATH_NOT_FOUND)
+        if (setRootDir() == PATH_NOT_FOUND)
             return EXIT_FAILURE;
 
         root_dir = root_dir + _STR_FORMAT(/Socket-realtime-cached-chat);
@@ -347,9 +358,11 @@ namespace clca
         return EXIT_SUCCESS;
     }
 
-    basic_string<_PATH_CHAR> getRootDir(){
-        if(root_dir.empty()){
-            if(fileSysSetup() == EXIT_SUCCESS)
+    basic_string<_PATH_CHAR> getRootDir()
+    {
+        if (root_dir.empty())
+        {
+            if (fileSysSetup() == EXIT_SUCCESS)
                 return root_dir;
             else
                 return _STR_FORMAT();
@@ -358,9 +371,11 @@ namespace clca
         return root_dir;
     }
 
-    basic_string<_PATH_CHAR> getCacheDir(){
-        if(cache_dir.empty()){
-            if(fileSysSetup() == EXIT_SUCCESS)
+    basic_string<_PATH_CHAR> getCacheDir()
+    {
+        if (cache_dir.empty())
+        {
+            if (fileSysSetup() == EXIT_SUCCESS)
                 return cache_dir;
             else
                 return _STR_FORMAT();
@@ -368,10 +383,12 @@ namespace clca
 
         return cache_dir;
     }
-    
-    basic_string<_PATH_CHAR> getAuthDir(){
-        if(auth_dir.empty()){
-            if(fileSysSetup() == EXIT_SUCCESS)
+
+    basic_string<_PATH_CHAR> getAuthDir()
+    {
+        if (auth_dir.empty())
+        {
+            if (fileSysSetup() == EXIT_SUCCESS)
                 return auth_dir;
             else
                 return _STR_FORMAT();
@@ -388,9 +405,10 @@ namespace clca
             strncpy(this->text, other.text, BUFSIZE);
         }
 
-        Message::Message(){
+        Message::Message()
+        {
             memset(this->text, '\0', BUFSIZE);
-            memset(this->owner, '\0', OWNERZIZE); 
+            memset(this->owner, '\0', OWNERZIZE);
         }
 
         Message::Message(Type t) : text{}, owner{}, type(t)
@@ -412,109 +430,121 @@ namespace clca
             return *this;
         }
 
-        Message *Message::fetchMessageFromString(vector<char>::iterator &str, const vector<char>::iterator &end){
+        Message *Message::fetchMessageFromString(vector<char>::iterator &str, const vector<char>::iterator &end)
+        {
             Message *msg = new Message();
 
-            size_t text_size,own_size;
+            size_t text_size, own_size;
 
-            const vector<char>::iterator str_copy=str;
+            const vector<char>::iterator str_copy = str;
 
-            if(*str == '\0')
+            if (*str == '\0')
                 return nullptr;
 
-
-            vector<char> input(8 + 1); //data size * 2(because one char is half-byte(F)) + \0
-            copy(str, str + input.size()-1, input.begin());
+            vector<char> input(8 + 1); // data size * 2(because one char is half-byte(F)) + \0
+            copy(str, str + input.size() - 1, input.begin());
             msg->setTimestamp(strtol(&input[0], NULL, 16));
 
-            if((str + input.size()-1) < end){
-                str+=input.size()-1;
+            if ((str + input.size() - 1) < end)
+            {
+                str += input.size() - 1;
             }
-            else{
-                return nullptr;
-            }
-            
-            input.clear();
-
-            input.resize(4 + 1); //data size * 2(because one char is half-byte(F)) + \0
-            copy(str, str + input.size()-1, input.begin());
-            msg->setType(static_cast<Type>(strtol(&input[0], NULL, 16 )));
-            
-            if((str + input.size()-1) < end){
-                str+=input.size()-1;
-            }
-            else{
-                str=str_copy;
+            else
+            {
                 return nullptr;
             }
 
             input.clear();
 
-            input.resize(2 + 1); //data size * 2(because one char is half-byte(F)) + \0
-            copy(str, str + input.size()-1, input.begin());
-            text_size=strtol( &input[0], NULL, 16 );
-            
-            if((str + input.size()-1) < end){
-                str+=input.size()-1;
+            input.resize(4 + 1); // data size * 2(because one char is half-byte(F)) + \0
+            copy(str, str + input.size() - 1, input.begin());
+            msg->setType(static_cast<Type>(strtol(&input[0], NULL, 16)));
+
+            if ((str + input.size() - 1) < end)
+            {
+                str += input.size() - 1;
             }
-            else{
-                str=str_copy;
+            else
+            {
+                str = str_copy;
                 return nullptr;
             }
 
             input.clear();
 
-            input.resize(2 + 1); //data size * 2(because one char is half-byte(F)) + \0
-            copy(str, str + input.size()-1, input.begin());
-            own_size=strtol(&input[0], NULL, 16 );
-            
-            if((str + input.size()-1) < end){
-                str+=input.size()-1;
+            input.resize(2 + 1); // data size * 2(because one char is half-byte(F)) + \0
+            copy(str, str + input.size() - 1, input.begin());
+            text_size = strtol(&input[0], NULL, 16);
+
+            if ((str + input.size() - 1) < end)
+            {
+                str += input.size() - 1;
             }
-            else{
-                str=str_copy;
+            else
+            {
+                str = str_copy;
                 return nullptr;
             }
 
             input.clear();
 
-            if(text_size==0)
+            input.resize(2 + 1); // data size * 2(because one char is half-byte(F)) + \0
+            copy(str, str + input.size() - 1, input.begin());
+            own_size = strtol(&input[0], NULL, 16);
+
+            if ((str + input.size() - 1) < end)
+            {
+                str += input.size() - 1;
+            }
+            else
+            {
+                str = str_copy;
+                return nullptr;
+            }
+
+            input.clear();
+
+            if (text_size == 0)
                 goto no_text;
 
-            input.resize(text_size+1); //data size + \0
+            input.resize(text_size + 1); // data size + \0
             copy(str, str + text_size, input.begin());
             msg->appendText(&input[0]);
-            
-            if((str + text_size) < end){
-                str+=text_size;
+
+            if ((str + text_size) < end)
+            {
+                str += text_size;
             }
-            else{
-                str=str_copy;
+            else
+            {
+                str = str_copy;
                 return nullptr;
             }
 
             input.clear();
 
-            no_text:
+        no_text:
 
-            if(own_size==0)
+            if (own_size == 0)
                 goto no_own;
 
-            input.resize(own_size+1); //data size + \0
+            input.resize(own_size + 1); // data size + \0
             copy(str, str + own_size, input.begin());
             msg->setOwner(&input[0]);
-            
-            if((str + own_size+1) < end){
-                str+=own_size+1;
+
+            if ((str + own_size + 1) < end)
+            {
+                str += own_size + 1;
             }
-            else{
-                str=str_copy;
+            else
+            {
+                str = str_copy;
                 return nullptr;
             }
 
             input.clear();
 
-            no_own:
+        no_own:
 
             return msg;
         }
@@ -578,20 +608,20 @@ namespace clca
         void Message::_send(_SOCKET socket)
         {
             string msg = this->parseString();
-            send(socket, msg.c_str(), msg.length()+1, 0);
+            send(socket, msg.c_str(), msg.length() + 1, 0);
         };
 
-        string Message::parseString(){
+        string Message::parseString()
+        {
             ostringstream _str;
 
-            _str<<hex //i put hex value just for readability
-                <<setw(8)<<setfill('0')<<(0xFFFFFFFF & this->getTimestamp())
-                <<setw(4)<<setfill('0')<<(0xFFFF & this->getType())
-                <<setw(2)<<setfill('0')<<(0xFF & strlen(this->text))
-                <<setw(2)<<setfill('0')<<(0xFF & strlen(this->owner))
-                <<this->text
-                <<this->owner;
-            
+            _str << hex // i put hex value just for readability
+                 << setw(8) << setfill('0') << (0xFFFFFFFF & this->getTimestamp())
+                 << setw(4) << setfill('0') << (0xFFFF & this->getType())
+                 << setw(2) << setfill('0') << (0xFF & strlen(this->text))
+                 << setw(2) << setfill('0') << (0xFF & strlen(this->owner))
+                 << this->text
+                 << this->owner;
 
             return _str.str();
         }
