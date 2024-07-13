@@ -88,6 +88,10 @@ int setup_server(int port)
 
 void send_auth_()
 {
+    srv::send_message(clca::msg::AUTH, serverSession->username.c_str(), serverSession->uuid.c_str());
+}
+
+void send_info_(){
     string auth;
 
     switch (serverSession->file_flag)
@@ -106,10 +110,10 @@ void send_auth_()
 
     if (serverSession->file_flag > 0)
     {
-        srv::send_message(clca::msg::AUTH, serverSession->uuid.c_str(), auth.c_str(), "-", to_string(serverSession->file_flag).c_str());
+        srv::send_message(clca::msg::INFO, serverSession->username.c_str(), auth.c_str(), "-", to_string(serverSession->file_flag).c_str());
     }
     else{
-        srv::send_message(clca::msg::AUTH, serverSession->uuid.c_str(),auth.c_str());
+        srv::send_message(clca::msg::INFO, serverSession->username.c_str(), auth.c_str());
     }
 }
 
@@ -181,6 +185,8 @@ int start_server()
             load_data();
 
             send_auth_();
+
+            send_info_();
 
             srv::wait_peer();
 

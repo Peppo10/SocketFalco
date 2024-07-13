@@ -132,14 +132,18 @@ void srv::client_listen_reicvmessage()
 #ifdef _WIN32
             {
                 std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-                session->remote_uuid = converter.from_bytes(servermessage.getOwner());
+                session->remote_username = servermessage.getOwner();
+                session->remote_uuid = converter.from_bytes(servermessage.getContent());
             }
 #elif __linux__
             {
-                session->remote_uuid = servermessage.getOwner();
+                session->remote_username = servermessage.getOwner();
+                session->remote_uuid = servermessage.getContent();
             }
 #endif
-
+                session->m1.unlock();
+                break;
+            case clca::msg::Type::INFO:
                 servermessage.setOwner("Server");
                 servermessage.print();
 
@@ -156,9 +160,6 @@ void srv::client_listen_reicvmessage()
                 session->notified = true;
                 session->cv.notify_one();
                 session->m1.unlock();
-                break;
-            case clca::msg::Type::INFO:
-                cerr << "INFO message not handled by client" << endl;
                 break;
             case clca::msg::Type::MESSAGE:
                 handle_message(servermessage, session->chat, session->m1, session->input);
@@ -240,11 +241,13 @@ void srv::server_listen_reicvmessage()
 #ifdef _WIN32
             {
                 std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-                session->remote_uuid = converter.from_bytes(clientmessage.getOwner());
+                session->remote_username = clientmessage.getOwner();
+                session->remote_uuid = converter.from_bytes(clientmessage.getContent());
             }
 #elif __linux__
             {
-                session->remote_uuid = clientmessage.getOwner();
+                session->remote_username = clientmessage.getOwner();
+                session->remote_uuid = clientmessage.getContent();
             }
 #endif
                 session->notified = true;

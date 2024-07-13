@@ -164,6 +164,8 @@ namespace clca
     int load_chat(Chat &chat, basic_string<_PATH_CHAR> filename)
     {
         basic_string<_PATH_CHAR> filedir = getCacheDir() + _STR_FORMAT(/) + filename;
+        
+        Session* session = Session::getInstance();
 
         if (!(chatcache = fstream(filedir.c_str())))
         {
@@ -175,7 +177,6 @@ namespace clca
             dirtyflag = FILE_ALREADY_EXISTS;
             string line;
 
-            chatcache.ignore(OWNERZIZE, '\n');
             chatcache.ignore(IPSIZE+1, '\n');
 
             while (getline(chatcache, line))
@@ -186,7 +187,7 @@ namespace clca
 
                 message.setTimestamp(stol(strtok(cstr.data(), "\xB2")));
 
-                message.setOwner(strtok(NULL, "\xB2"));
+                message.setOwner(strcmp(strtok(NULL, "\xB2"), session->remote_username.c_str()) == 0 ? session->remote_username.c_str() : session->username.c_str());
 
                 if (strcmp(strtok(NULL, "\xB2"), "new") == 0)
                 {
@@ -213,15 +214,13 @@ namespace clca
 
         Session* session = Session::getInstance();
 
-        chatcache << chat.getAt(chat.getSize() - 1).getOwner() << endl;
         chatcache << std::setfill('0') << std::setw(IPSIZE) << int(session->remote_socket_addr.sin_addr.S_un.S_addr) << endl;
-
 
         for (size_t i = 0; i < chat.getSize(); i++)
         {
             msg::Message &msg = chat.getAt(i);
 
-            chatcache << msg.getTimestamp() << "\xB2" << msg.getOwner() << "\xB2" << ((msg.getType() == msg::Type::NEW_MESSAGE) ? "new" : "wen") << "\xB2" << msg.getContent()
+            chatcache << msg.getTimestamp() << "\xB2" << (strcmp(msg.getOwner(), session->remote_username.c_str()) == 0 ? msg.getOwner() : "you" )<< "\xB2" << ((msg.getType() == msg::Type::NEW_MESSAGE) ? "new" : "wen") << "\xB2" << msg.getContent()
                       << "\n";
         }
 
