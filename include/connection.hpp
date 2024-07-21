@@ -26,12 +26,10 @@ SOFTWARE.*/
 #include "caching.hpp"
 #include <condition_variable>
 #include <mutex>
+#include <thread>
 
 #ifdef _WIN32
 #include <ws2tcpip.h>
-#include <thread>
-
-#define FAILED_TO_CONNECT 404
 #define _SOCKET_INV INVALID_SOCKET
 #define _SOCKET_ERR SOCKET_ERROR
 #define _CLEAR "cls"
@@ -46,6 +44,7 @@ typedef int _ADDR_LEN;
 typedef u_int _ADDR_LEN;
 #endif
 
+#define FAILED_TO_CONNECT 404
 #define PORT 30000
 
 using namespace std;

@@ -3,7 +3,7 @@
 	"tasks": [
 		{
 			"label": "build active file WIN",
-			"type": "cppbuild",
+			"type": "shell",
 			"command": "C:/mingw64/bin/g++.exe",
 			"args": [
 				"-fdiagnostics-color=always",
@@ -34,9 +34,10 @@
 		},
 		{
 			"label": "build active file LINUX",
-			"type": "cppbuild",
+			"type": "shell",
 			"command": "/usr/bin/g++",
 			"args": [
+				"-std=c++17",
 				"-fdiagnostics-color=always",
 				"-g3",
 				"-Wall",

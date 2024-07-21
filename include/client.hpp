@@ -44,7 +44,7 @@ int try_connection(in_addr ip_address, u_short port)
 #ifdef _WIN32
         cout << "Error at socket(): " << WSAGetLastError() << endl;
 #elif __linux__
-        cout << "Error at socket(), exit code: " << clientSession->local_socket << endl;
+        cout << "Error at socket(), exit code: " << clientSession->remote_socket << endl;
 #endif
     }
 
