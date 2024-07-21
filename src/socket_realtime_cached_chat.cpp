@@ -24,12 +24,12 @@ int main(int argc, char *argv[])
             size_t c = 1;
             for (const auto &entry : std::filesystem::directory_iterator(path))
             {
-                wfstream f(entry.path().c_str(), fstream::in | fstream::out);
+                fstream f(entry.path().c_str(), fstream::in | fstream::out);
 
-                basic_string<_PATH_CHAR> username;
+                string username;
                 f >> username;
 
-                std::_STR_COUT << c++ << ">" << entry.path().filename() << "(" << username << ")" << std::endl;
+                std::cout << c++ << ">" << entry.path().filename() << "(" << username << ")" << std::endl;
             }
 
             return EXIT_SUCCESS;

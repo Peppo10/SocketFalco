@@ -1,5 +1,5 @@
-#include "..\include\connection.hpp"
-#include "..\include\service.hpp"
+#include "../include/connection.hpp"
+#include "../include/service.hpp"
 
 int add_new_messages(string remote)
 {

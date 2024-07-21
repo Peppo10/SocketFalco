@@ -144,7 +144,7 @@ namespace clca
         return const_cast<msg::Message &>(*l_front);
     }
 
-    void Chat::print(boolean normalize)
+    void Chat::print(bool normalize)
     {
         for (auto it = this->messages.begin(); it != this->messages.end(); ++it)
         {
@@ -214,7 +214,13 @@ namespace clca
 
         Session* session = Session::getInstance();
 
-        chatcache << std::setfill('0') << std::setw(IPSIZE) << int(session->remote_socket_addr.sin_addr.S_un.S_addr) << endl;
+        chatcache << std::setfill('0') << std::setw(IPSIZE) << int(         
+#ifdef _WIN32
+    session->remote_socket_addr.sin_addr.S_un.S_addr
+#elif __linux__
+    session->remote_socket_addr.sin_addr.s_addr
+#endif
+        ) << endl;
 
         for (size_t i = 0; i < chat.getSize(); i++)
         {
