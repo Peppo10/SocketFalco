@@ -177,6 +177,8 @@ namespace clca
             dirtyflag = FILE_ALREADY_EXISTS;
             string line;
 
+            //i get here the remote username from old session, during the new authentication(if it will occurr) this will be overwrited
+            getline(chatcache, session->remote_username);
             chatcache.ignore(IPSIZE+1, '\n');
 
             while (getline(chatcache, line))
@@ -187,7 +189,7 @@ namespace clca
 
                 message.setTimestamp(stol(strtok(cstr.data(), "\xB2")));
 
-                message.setOwner(strcmp(strtok(NULL, "\xB2"), session->remote_username.c_str()) == 0 ? session->remote_username.c_str() : session->username.c_str());
+                message.setOwner(strcmp(strtok(NULL, "\xB2"), "you") != 0 ? session->remote_username.c_str() : session->username.c_str());
 
                 if (strcmp(strtok(NULL, "\xB2"), "new") == 0)
                 {
@@ -214,6 +216,7 @@ namespace clca
 
         Session* session = Session::getInstance();
 
+        chatcache << session->remote_username << endl;
         chatcache << std::setfill('0') << std::setw(IPSIZE) << int(         
 #ifdef _WIN32
     session->remote_socket_addr.sin_addr.S_un.S_addr

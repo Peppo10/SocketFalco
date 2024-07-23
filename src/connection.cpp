@@ -3,10 +3,8 @@
 
 int add_new_messages(string remote)
 {
-    clca::Chat chat;
-    string input;
-    string username;
     [[maybe_unused]] string uuid;
+    Session* offlineSession = Session::getInstance();
 
 #ifdef _WIN32
     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
@@ -15,8 +13,12 @@ int add_new_messages(string remote)
     string remote_uuid = remote;
 #endif
 
-    if ((clca::load_chat(chat, remote_uuid) != FILE_NOT_ALREADY_EXISTS) && (clca::loadUUID(0, username, uuid) != FILE_NOT_ALREADY_EXISTS))
+    if ((clca::loadUUID(0, offlineSession->username, offlineSession->uuid) != FILE_NOT_ALREADY_EXISTS) && (clca::load_chat(offlineSession->chat, remote_uuid) != FILE_NOT_ALREADY_EXISTS))
     {
+        string username = offlineSession->username;
+        string &input = offlineSession->input;
+        clca::Chat &chat = offlineSession->chat;
+
         chat.print(false);
         cout << "You:";
 
