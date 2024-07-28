@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
             return start_server();
         }
 
-        if ((strcmp(argv[1], "-lchat") == 0) || (strcmp(argv[1], "-lc") == 0))
+        if ((strcmp(argv[1], "-list") == 0) || (strcmp(argv[1], "-ls") == 0))
         {
             auto path = clca::getCacheDir();
 
@@ -46,12 +46,12 @@ int main(int argc, char *argv[])
             return start_client(argc - 2, &argv[2]);
         }
 
-        if ((strcmp(argv[1], "-cname") == 0) || (strcmp(argv[1], "-cn") == 0))
+        if ((strcmp(argv[1], "-editName") == 0) || (strcmp(argv[1], "-eN") == 0))
         {
             return clca::update_name(argv[2]);
         }
 
-        if((strcmp(argv[1],"-new_message") == 0) || (strcmp(argv[1],"-nm") == 0)){
+        if((strcmp(argv[1],"-editChat") == 0) || (strcmp(argv[1],"-eC") == 0)){
             return add_new_messages(argv[2]);
         }
 
