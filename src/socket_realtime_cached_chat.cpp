@@ -51,7 +51,8 @@ int main(int argc, char *argv[])
             return clca::update_name(argv[2]);
         }
 
-        if((strcmp(argv[1],"-editChat") == 0) || (strcmp(argv[1],"-eC") == 0)){
+        if((strcmp(argv[1],"-editChat") == 0) || (strcmp(argv[1],"-eC") == 0))
+        {
             return add_new_messages(argv[2]);
         }
 

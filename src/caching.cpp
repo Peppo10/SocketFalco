@@ -252,26 +252,21 @@ namespace clca
             return EXIT_FAILURE;
         }
 
-        fstream f((getAuthDir() + _STR_FORMAT(/uuid)).c_str(), fstream::in);
+        fstream f((getAuthDir() + _STR_FORMAT(/uuid)).c_str(), fstream::in | fstream::out);
 
         string oldname, uuid;
 
         getline(f, oldname);
         getline(f, uuid);
 
-        f.close();
-
-        f.open((getAuthDir() + _STR_FORMAT(/uuid)).c_str(), fstream::out | fstream::trunc);
-
         f << name << endl;
-        f << uuid << endl;
+        f << (uuid.empty() ? clca::genUUID(name) : uuid) << endl;
 
         f.close();
 
         cout << "\033[38;2;255;255;0mUsername succesfully updated!\033[0m\n";
         cout << oldname << " -> " << name << endl;
-
-        return EXIT_SUCCESS;
+        return EXIT_SUCCESS;     
     }
 
     int loadUUID(int type, string &myname, string &uuid)
