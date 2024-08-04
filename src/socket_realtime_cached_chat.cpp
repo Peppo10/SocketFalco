@@ -19,17 +19,27 @@ int main(int argc, char *argv[])
         {
             auto path = clca::getCacheDir();
 
-            std::cout << "\033[38;2;255;255;0mList of your chats in cache:\033[0m\n";
+            std::cout << "\033[38;2;255;255;0m  ID\t\t\t\t\tNAME\t\tIP\033[0m\n";
 
             size_t c = 1;
             for (const auto &entry : std::filesystem::directory_iterator(path))
             {
-                fstream f(entry.path().c_str(), fstream::in | fstream::out);
+                fstream f(entry.path().c_str(), fstream::in);
 
-                string username;
+                string username,ip_str;
                 f >> username;
+                f >> ip_str;
 
-                std::cout << c++ << ">" << entry.path().filename() << "(" << username << ")" << std::endl;
+                IN_ADDR ip_addr;
+                ip_addr.S_un.S_addr =  std::atoi(ip_str.c_str());
+                char *ip = inet_ntoa(ip_addr);
+
+                username.resize(15, ' ');
+
+                std::cout << c++ << ">" 
+                          << entry.path().filename().string()
+                          << "\t" << username 
+                          << "\t" << ip << std::endl;
             }
 
             return EXIT_SUCCESS;
