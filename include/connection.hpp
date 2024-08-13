@@ -89,6 +89,7 @@ public:
     int remote_connect = DISCONNECT;
     int file_flag;
     bool notified = false;
+    bool temporary = false;
 
     Session(const Session& obj) = delete;
 

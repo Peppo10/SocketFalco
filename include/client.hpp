@@ -112,12 +112,15 @@ int setup(){
     if (clca::loadUUID(0, clientSession->username, clientSession->uuid) == FILE_NOT_ALREADY_EXISTS)
         handle_new_user();
 
+    if(clientSession->temporary)
+        clientSession->uuid = "";
+
     cout << "\033[38;2;255;255;0mWelcome " << clientSession->username << "!\033[0m\n";
 
     return EXIT_SUCCESS;
 }
 
-int start_client(int argc, char *argv[])
+int start_client(int argc, char *argv[], bool temporarySession = false)
 {
 
     if (argc != 1)
@@ -127,6 +130,7 @@ int start_client(int argc, char *argv[])
     }
 
     clientSession = Session::getInstance();
+    clientSession->temporary = temporarySession;
     
     if(setup())
         return EXIT_FAILURE;

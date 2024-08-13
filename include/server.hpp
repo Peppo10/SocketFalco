@@ -137,12 +137,16 @@ void load_data(){
     if (clca::loadUUID(1, serverSession->username, serverSession->uuid) == FILE_NOT_ALREADY_EXISTS)
         serverSession->uuid = clca::genUUID(serverSession->username);
 
+    if(serverSession->temporary)
+        serverSession->uuid = "";
+
     serverSession->file_flag = clca::load_chat(serverSession->chat, serverSession->remote_uuid);
 }
 
-int start_server()
+int start_server(bool temporarySession = false)
 {
     serverSession = Session::getInstance();
+    serverSession->temporary = temporarySession;
     
     if(setup_())
         return EXIT_FAILURE;
