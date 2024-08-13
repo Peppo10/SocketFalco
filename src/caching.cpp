@@ -239,6 +239,39 @@ namespace clca
         return 1;
     }
 
+    int list_chat(){
+        auto path = clca::getCacheDir();
+
+        std::cout << "  ID\t\t\t\t\tNAME\t\tIP\n";
+
+        size_t c = 1;
+        for (const auto &entry : std::filesystem::directory_iterator(path))
+        {
+            fstream f(entry.path().c_str(), fstream::in);
+
+            string username,ip_str;
+            f >> username;
+            f >> ip_str;
+
+            IN_ADDR ip_addr;
+            ip_addr.S_un.S_addr =  std::atoi(ip_str.c_str());
+            char *ip = inet_ntoa(ip_addr);
+
+            username.resize(15, ' ');
+
+            std::cout << c++ << ">" 
+                      << entry.path().filename().string()
+                      << "\t" << username 
+                      << "\t" << ip << std::endl;
+        }
+
+        return EXIT_SUCCESS;
+    }
+
+    int show_help(){
+        return EXIT_SUCCESS;
+    }
+
     int update_name(string name)
     {
         if (name.length() > 15)

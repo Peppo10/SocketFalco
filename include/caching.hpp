@@ -191,6 +191,10 @@ namespace clca
     basic_string<_PATH_CHAR> getAuthDir();
 
     int update_name(string name);
+
+    int list_chat();
+
+    int show_help();
 }
 
 #endif
