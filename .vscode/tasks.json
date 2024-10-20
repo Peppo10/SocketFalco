@@ -14,7 +14,7 @@
 				"${fileDirname}\\caching.cpp",
 				"${fileDirname}\\connection.cpp",
 				"-o",
-				"${fileDirname}\\${fileBasenameNoExtension}.exe",
+				"${fileDirname}\\SocketFalco.exe",
 				"-static",
 				"-lws2_32",
 				"-lpthread",
@@ -46,7 +46,7 @@
 				"${fileDirname}/caching.cpp",
 				"${fileDirname}/connection.cpp",
 				"-o",
-				"${fileDirname}/${fileBasenameNoExtension}",
+				"${fileDirname}/SocketFalco",
 				"-lpthread"
 			],
 			"group": {
@@ -75,7 +75,7 @@
 				"kind": "none",
 				"isDefault": true
 			},
-			"command": "${fileDirname}\\${fileBasenameNoExtension}.exe"
+			"command": "${fileDirname}\\SocketFalco.exe"
 		},
 		{
 			"label": "Compile and Run LINUX",
@@ -97,7 +97,7 @@
 				"kind": "none",
 				"isDefault": true
 			},
-			"command": "./${fileDirname}/${fileBasenameNoExtension}"
+			"command": "./${fileDirname}/SocketFalco"
 		}
 	]
 }
