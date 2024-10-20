@@ -20,7 +20,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
 
-#include "caching.hpp"
+#include "../include/caching.hpp"
+#include "../include/connection.hpp"
 
 basic_string<_PATH_CHAR> root_dir;
 basic_string<_PATH_CHAR> cache_dir;
@@ -85,16 +86,43 @@ int setRootDir()
         }
         else
         {
-            root_dir=path;
+            root_dir = path;
             root_dir.append("/.local/share");
         }
     }
-    else{
-        root_dir=path;
+    else
+    {
+        root_dir = path;
     }
 #endif
     return PATH_FOUND;
 }
+
+const char* help_message = 
+    "Usage: SocketFalco [options] <arguments>\n\n"
+    "Options:\n"
+    "-l, -listen                   Start the server. Use -t for temporary session.\n"
+    "                                Example: SocketFalco -l\n"
+    "                                         SocketFalco -l -t\n\n"
+    "-ls, -list                    List available chat sessions.\n"
+    "                                Example: SocketFalco -ls\n\n"
+    "-c, -connect <address>        Connect to a specified server address. Use -t for temporary session.\n"
+    "                                Example: SocketFalco -c 192.168.1.1\n"
+    "                                         SocketFalco -c -t 192.168.1.1\n\n"
+    "-eN, -editName <name>         Edit the current user name.\n"
+    "                                Example: SocketFalco -eN NewName\n\n"
+    "-eC, -editChat <ChatUUID>     Open the specific chat\n"
+    "                                Example: SocketFalco -eC chatUUID\n\n"
+    "-h, -help                     Show this help message and exit.\n"
+    "\n"
+    "Examples:\n"
+    "SocketFalco -listen                   Start the server.\n"
+    "SocketFalco -listen -t                Start the server in temporary mode.\n"
+    "SocketFalco -connect 192.168.0.1      Connect to the server at 192.168.0.1.\n"
+    "SocketFalco -connect -t 192.168.0.1   Connect to the server at 192.168.0.1 in temporary mode.\n"
+    "SocketFalco -list                     List all chat sessions.\n"
+    "SocketFalco -editName Alice           Change the username to \"Alice\".\n"
+    "SocketFalco -editChat 97b8b...        Open the specific chat and let the user to add new messages.\n";
 
 namespace clca
 {
@@ -142,12 +170,15 @@ namespace clca
         return const_cast<msg::Message &>(*l_front);
     }
 
-    void Chat::print()
+    void Chat::print(bool normalize)
     {
         for (auto it = this->messages.begin(); it != this->messages.end(); ++it)
         {
             msg::Message &msg = const_cast<msg::Message &>(*it);
             msg.print();
+
+            if (normalize)
+                msg.normalize();
         }
     }
 
@@ -158,7 +189,9 @@ namespace clca
 
     int load_chat(Chat &chat, basic_string<_PATH_CHAR> filename)
     {
-        basic_string<_PATH_CHAR> filedir = cache_dir + _STR_FORMAT(/) + filename;
+        basic_string<_PATH_CHAR> filedir = getCacheDir() + _STR_FORMAT(/) + filename;
+        
+        Session* session = Session::getInstance();
 
         if (!(chatcache = fstream(filedir.c_str())))
         {
@@ -170,6 +203,10 @@ namespace clca
             dirtyflag = FILE_ALREADY_EXISTS;
             string line;
 
+            //i get here the remote username from old session, during the new authentication(if it will occurr) this will be overwrited
+            getline(chatcache, session->remote_username);
+            chatcache.ignore(IPSIZE+1, '\n');
+
             while (getline(chatcache, line))
             {
                 msg::Message message(msg::Type::MESSAGE);
@@ -178,7 +215,7 @@ namespace clca
 
                 message.setTimestamp(stol(strtok(cstr.data(), "\xB2")));
 
-                message.setOwner(strtok(NULL, "\xB2"));
+                message.setOwner(strcmp(strtok(NULL, "\xB2"), "you") != 0 ? session->remote_username.c_str() : session->username.c_str());
 
                 if (strcmp(strtok(NULL, "\xB2"), "new") == 0)
                 {
@@ -199,15 +236,26 @@ namespace clca
 
     int save_chat(Chat chat, basic_string<_PATH_CHAR> filename)
     {
-        basic_string<_PATH_CHAR> filedir = cache_dir + _STR_FORMAT(/) + filename;
+        basic_string<_PATH_CHAR> filedir = getCacheDir() + _STR_FORMAT(/) + filename;
 
         chatcache.open(filedir.c_str(), fstream::in | fstream::out | fstream::trunc); // TODO create another file every time(it's not good for long chat)
+
+        Session* session = Session::getInstance();
+
+        chatcache << session->remote_username << endl;
+        chatcache << std::setfill('0') << std::setw(IPSIZE) << int(         
+#ifdef _WIN32
+    session->remote_socket_addr.sin_addr.S_un.S_addr
+#elif __linux__
+    session->remote_socket_addr.sin_addr.s_addr
+#endif
+        ) << endl;
 
         for (size_t i = 0; i < chat.getSize(); i++)
         {
             msg::Message &msg = chat.getAt(i);
 
-            chatcache << msg.getTimestamp() << "\xB2" << msg.getOwner() << "\xB2" << ((msg.getType() == msg::Type::NEW_MESSAGE) ? "new" : "wen") << "\xB2" << msg.getContent()
+            chatcache << msg.getTimestamp() << "\xB2" << (strcmp(msg.getOwner(), session->remote_username.c_str()) == 0 ? msg.getOwner() : "you" )<< "\xB2" << ((msg.getType() == msg::Type::NEW_MESSAGE) ? "new" : "wen") << "\xB2" << msg.getContent()
                       << "\n";
         }
 
@@ -217,9 +265,73 @@ namespace clca
         return 1;
     }
 
+    int list_chat(){
+        auto path = clca::getCacheDir();
+
+        std::cout << "  ID\t\t\t\t\tNAME\t\tIP\n";
+
+        size_t c = 1;
+        for (const auto &entry : std::filesystem::directory_iterator(path))
+        {
+            fstream f(entry.path().c_str(), fstream::in);
+
+            string username,ip_str;
+            f >> username;
+            f >> ip_str;
+
+            IN_ADDR ip_addr;
+            ip_addr.S_un.S_addr =  std::atoi(ip_str.c_str());
+            char *ip = inet_ntoa(ip_addr);
+
+            username.resize(15, ' ');
+
+            std::cout << c++ << ">" 
+                      << entry.path().filename().string()
+                      << "\t" << username 
+                      << "\t" << ip << std::endl;
+        }
+
+        return EXIT_SUCCESS;
+    }
+
+    int show_help(){
+        std::cout << help_message << endl;
+        return EXIT_SUCCESS;
+    }
+
+    int update_name(string name)
+    {
+        if (name.length() > 15)
+        {
+            cout << name << " is too long(max 15 characters)" << endl;
+            return EXIT_FAILURE;
+        }
+        else if (name.length() < 1)
+        {
+            cout << "at least one character!" << endl;
+            return EXIT_FAILURE;
+        }
+
+        fstream f((getAuthDir() + _STR_FORMAT(/uuid)).c_str(), fstream::in | fstream::out);
+
+        string oldname, uuid;
+
+        getline(f, oldname);
+        getline(f, uuid);
+
+        f << name << endl;
+        f << (uuid.empty() ? clca::genUUID(name) : uuid) << endl;
+
+        f.close();
+
+        cout << "\033[38;2;255;255;0mUsername succesfully updated!\033[0m\n";
+        cout << oldname << " -> " << name << endl;
+        return EXIT_SUCCESS;     
+    }
+
     int loadUUID(int type, string &myname, string &uuid)
     {
-        basic_string<_PATH_CHAR> filedir = auth_dir + _STR_FORMAT(/uuid);
+        basic_string<_PATH_CHAR> filedir = getAuthDir() + _STR_FORMAT(/uuid);
 
         if (!(chatcache = fstream(filedir.c_str())))
         {
@@ -243,7 +355,7 @@ namespace clca
     {
         string uuid = _UUID();
 
-        basic_string<_PATH_CHAR> filedir = auth_dir + _STR_FORMAT(/uuid);
+        basic_string<_PATH_CHAR> filedir = getAuthDir() + _STR_FORMAT(/uuid);
 
         chatcache.open(filedir.c_str(), fstream::in | fstream::out | fstream::trunc);
 
@@ -258,10 +370,10 @@ namespace clca
 
     int fileSysSetup()
     {
-        if(setRootDir() == PATH_NOT_FOUND)
+        if (setRootDir() == PATH_NOT_FOUND)
             return EXIT_FAILURE;
 
-        root_dir = root_dir + _STR_FORMAT(/Socket-realtime-cached-chat);
+        root_dir = root_dir + _STR_FORMAT(/SocketFalco);
 
         try
         {
@@ -309,6 +421,45 @@ namespace clca
         return EXIT_SUCCESS;
     }
 
+    basic_string<_PATH_CHAR> getRootDir()
+    {
+        if (root_dir.empty())
+        {
+            if (fileSysSetup() == EXIT_SUCCESS)
+                return root_dir;
+            else
+                return _STR_FORMAT();
+        }
+
+        return root_dir;
+    }
+
+    basic_string<_PATH_CHAR> getCacheDir()
+    {
+        if (cache_dir.empty())
+        {
+            if (fileSysSetup() == EXIT_SUCCESS)
+                return cache_dir;
+            else
+                return _STR_FORMAT();
+        }
+
+        return cache_dir;
+    }
+
+    basic_string<_PATH_CHAR> getAuthDir()
+    {
+        if (auth_dir.empty())
+        {
+            if (fileSysSetup() == EXIT_SUCCESS)
+                return auth_dir;
+            else
+                return _STR_FORMAT();
+        }
+
+        return auth_dir;
+    }
+
     namespace msg
     {
         Message::Message(const Message &other) : timestamp(other.timestamp), type(other.getType())
@@ -317,9 +468,10 @@ namespace clca
             strncpy(this->text, other.text, BUFSIZE);
         }
 
-        Message::Message(){
+        Message::Message()
+        {
             memset(this->text, '\0', BUFSIZE);
-            memset(this->owner, '\0', OWNERZIZE); 
+            memset(this->owner, '\0', OWNERZIZE);
         }
 
         Message::Message(Type t) : text{}, owner{}, type(t)
@@ -341,109 +493,121 @@ namespace clca
             return *this;
         }
 
-        Message *Message::fetchMessageFromString(vector<char>::iterator &str, const vector<char>::iterator &end){
+        Message *Message::fetchMessageFromString(vector<char>::iterator &str, const vector<char>::iterator &end)
+        {
             Message *msg = new Message();
 
-            size_t text_size,own_size;
+            size_t text_size, own_size;
 
-            const vector<char>::iterator str_copy=str;
+            const vector<char>::iterator str_copy = str;
 
-            if(*str == '\0')
+            if (*str == '\0')
                 return nullptr;
 
-
-            vector<char> input(8 + 1); //data size * 2(because one char is half-byte(F)) + \0
-            copy(str, str + input.size()-1, input.begin());
+            vector<char> input(8 + 1); // data size * 2(because one char is half-byte(F)) + \0
+            copy(str, str + input.size() - 1, input.begin());
             msg->setTimestamp(strtol(&input[0], NULL, 16));
 
-            if((str + input.size()-1) < end){
-                str+=input.size()-1;
+            if ((str + input.size() - 1) < end)
+            {
+                str += input.size() - 1;
             }
-            else{
-                return nullptr;
-            }
-            
-            input.clear();
-
-            input.resize(4 + 1); //data size * 2(because one char is half-byte(F)) + \0
-            copy(str, str + input.size()-1, input.begin());
-            msg->setType(static_cast<Type>(strtol(&input[0], NULL, 16 )));
-            
-            if((str + input.size()-1) < end){
-                str+=input.size()-1;
-            }
-            else{
-                str=str_copy;
+            else
+            {
                 return nullptr;
             }
 
             input.clear();
 
-            input.resize(2 + 1); //data size * 2(because one char is half-byte(F)) + \0
-            copy(str, str + input.size()-1, input.begin());
-            text_size=strtol( &input[0], NULL, 16 );
-            
-            if((str + input.size()-1) < end){
-                str+=input.size()-1;
+            input.resize(4 + 1); // data size * 2(because one char is half-byte(F)) + \0
+            copy(str, str + input.size() - 1, input.begin());
+            msg->setType(static_cast<Type>(strtol(&input[0], NULL, 16)));
+
+            if ((str + input.size() - 1) < end)
+            {
+                str += input.size() - 1;
             }
-            else{
-                str=str_copy;
+            else
+            {
+                str = str_copy;
                 return nullptr;
             }
 
             input.clear();
 
-            input.resize(2 + 1); //data size * 2(because one char is half-byte(F)) + \0
-            copy(str, str + input.size()-1, input.begin());
-            own_size=strtol(&input[0], NULL, 16 );
-            
-            if((str + input.size()-1) < end){
-                str+=input.size()-1;
+            input.resize(2 + 1); // data size * 2(because one char is half-byte(F)) + \0
+            copy(str, str + input.size() - 1, input.begin());
+            text_size = strtol(&input[0], NULL, 16);
+
+            if ((str + input.size() - 1) < end)
+            {
+                str += input.size() - 1;
             }
-            else{
-                str=str_copy;
+            else
+            {
+                str = str_copy;
                 return nullptr;
             }
 
             input.clear();
 
-            if(text_size==0)
+            input.resize(2 + 1); // data size * 2(because one char is half-byte(F)) + \0
+            copy(str, str + input.size() - 1, input.begin());
+            own_size = strtol(&input[0], NULL, 16);
+
+            if ((str + input.size() - 1) < end)
+            {
+                str += input.size() - 1;
+            }
+            else
+            {
+                str = str_copy;
+                return nullptr;
+            }
+
+            input.clear();
+
+            if (text_size == 0)
                 goto no_text;
 
-            input.resize(text_size+1); //data size + \0
+            input.resize(text_size + 1); // data size + \0
             copy(str, str + text_size, input.begin());
             msg->appendText(&input[0]);
-            
-            if((str + text_size) < end){
-                str+=text_size;
+
+            if ((str + text_size) < end)
+            {
+                str += text_size;
             }
-            else{
-                str=str_copy;
+            else
+            {
+                str = str_copy;
                 return nullptr;
             }
 
             input.clear();
 
-            no_text:
+        no_text:
 
-            if(own_size==0)
+            if (own_size == 0)
                 goto no_own;
 
-            input.resize(own_size+1); //data size + \0
+            input.resize(own_size + 1); // data size + \0
             copy(str, str + own_size, input.begin());
             msg->setOwner(&input[0]);
-            
-            if((str + own_size+1) < end){
-                str+=own_size+1;
+
+            if ((str + own_size + 1) < end)
+            {
+                str += own_size + 1;
             }
-            else{
-                str=str_copy;
+            else
+            {
+                str = str_copy;
                 return nullptr;
             }
 
             input.clear();
 
-            no_own:
+        no_own:
 
             return msg;
         }
@@ -482,7 +646,7 @@ namespace clca
 
             tms << "[" << timeInfo->tm_mday
                 << "/" << timeInfo->tm_mon + 1
-                << "/" << (timeInfo->tm_year % 100) << " "
+                << "/" << (timeInfo->tm_year + 1900) << " "
                 << timeInfo->tm_hour << ":" << ((timeInfo->tm_min < 10) ? "0" : "")
                 << timeInfo->tm_min << "]";
 
@@ -507,20 +671,20 @@ namespace clca
         void Message::_send(_SOCKET socket)
         {
             string msg = this->parseString();
-            send(socket, msg.c_str(), msg.length()+1, 0);
+            send(socket, msg.c_str(), msg.length() + 1, 0);
         };
 
-        string Message::parseString(){
+        string Message::parseString()
+        {
             ostringstream _str;
 
-            _str<<hex //i put hex value just for readability
-                <<setw(8)<<setfill('0')<<(0xFFFFFFFF & this->getTimestamp())
-                <<setw(4)<<setfill('0')<<(0xFFFF & this->getType())
-                <<setw(2)<<setfill('0')<<(0xFF & strlen(this->text))
-                <<setw(2)<<setfill('0')<<(0xFF & strlen(this->owner))
-                <<this->text
-                <<this->owner;
-            
+            _str << hex // i put hex value just for readability
+                 << setw(8) << setfill('0') << (0xFFFFFFFF & this->getTimestamp())
+                 << setw(4) << setfill('0') << (0xFFFF & this->getType())
+                 << setw(2) << setfill('0') << (0xFF & strlen(this->text))
+                 << setw(2) << setfill('0') << (0xFF & strlen(this->owner))
+                 << this->text
+                 << this->owner;
 
             return _str.str();
         }
@@ -538,7 +702,6 @@ namespace clca
         void Message::print()
         {
             cout << this->getDecodedTimestamp() << " " << this->getOwner() << ": " << this->getContent() << ((this->type == msg::Type::NEW_MESSAGE) ? "\033[38;2;255;255;0m \xFEnew\xFE\033[0m" : "") << endl;
-            this->normalize();
         }
 
         void Message::normalize()

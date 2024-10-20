@@ -64,6 +64,7 @@ typedef char _PATH_CHAR;
 
 #define BUFSIZE 255
 #define OWNERZIZE 34
+#define IPSIZE 39
 #define MESSAGE_MAX_SIZE BUFSIZE + OWNERZIZE + 8 + 4 + 2 + 2 + 1
 #define PATH_NOT_FOUND -3
 #define PATH_FOUND -2
@@ -74,7 +75,6 @@ using namespace std;
 
 namespace clca
 {
-
     namespace msg
     {
 
@@ -168,7 +168,7 @@ namespace clca
 
         msg::Message &getAt(int index);
 
-        void print();
+        void print(bool normalize);
 
         size_t getSize();
     };
@@ -182,6 +182,18 @@ namespace clca
     int save_chat(clca::Chat chat, basic_string<_PATH_CHAR> filename);
 
     int fileSysSetup();
+
+    basic_string<_PATH_CHAR> getRootDir();
+
+    basic_string<_PATH_CHAR> getCacheDir();
+    
+    basic_string<_PATH_CHAR> getAuthDir();
+
+    int update_name(string name);
+
+    int list_chat();
+
+    int show_help();
 }
 
 #endif

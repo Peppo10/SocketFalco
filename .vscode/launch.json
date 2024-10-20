@@ -8,9 +8,10 @@
             "name": "(gdb) Launch WIN",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/${fileBasenameNoExtension}.exe",
+            "program": "${workspaceFolder}/src/SocketFalco.exe",
             "args": [
-                "192.168.1.9"
+                "-l",
+                //"127.0.0.1"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
@@ -35,7 +36,7 @@
             "name": "(gdb) Launch LINUX",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/${fileBasenameNoExtension}",
+            "program": "${workspaceFolder}/SocketFalco",
             "args": [
                 "127.0.0.1"
             ],

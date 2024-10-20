@@ -3,17 +3,18 @@
 	"tasks": [
 		{
 			"label": "build active file WIN",
-			"type": "cppbuild",
+			"type": "shell",
 			"command": "C:/mingw64/bin/g++.exe",
 			"args": [
 				"-fdiagnostics-color=always",
 				"-g3",
 				"-Wall",
 				"${file}",
-				"${fileDirname}\\service\\service.cpp",
-				"${fileDirname}\\caching\\caching.cpp",
+				"${fileDirname}\\service.cpp",
+				"${fileDirname}\\caching.cpp",
+				"${fileDirname}\\connection.cpp",
 				"-o",
-				"${fileDirname}\\${fileBasenameNoExtension}.exe",
+				"${fileDirname}\\SocketFalco.exe",
 				"-static",
 				"-lws2_32",
 				"-lpthread",
@@ -33,17 +34,19 @@
 		},
 		{
 			"label": "build active file LINUX",
-			"type": "cppbuild",
+			"type": "shell",
 			"command": "/usr/bin/g++",
 			"args": [
+				"-std=c++17",
 				"-fdiagnostics-color=always",
 				"-g3",
 				"-Wall",
 				"${file}",
-				"${fileDirname}/service/service.cpp",
-				"${fileDirname}/caching/caching.cpp",
+				"${fileDirname}/service.cpp",
+				"${fileDirname}/caching.cpp",
+				"${fileDirname}/connection.cpp",
 				"-o",
-				"${fileDirname}/${fileBasenameNoExtension}",
+				"${fileDirname}/SocketFalco",
 				"-lpthread"
 			],
 			"group": {
@@ -72,7 +75,7 @@
 				"kind": "none",
 				"isDefault": true
 			},
-			"command": "${fileDirname}\\${fileBasenameNoExtension}.exe"
+			"command": "${fileDirname}\\SocketFalco.exe"
 		},
 		{
 			"label": "Compile and Run LINUX",
@@ -94,7 +97,7 @@
 				"kind": "none",
 				"isDefault": true
 			},
-			"command": "./${fileDirname}/${fileBasenameNoExtension}"
+			"command": "./${fileDirname}/SocketFalco"
 		}
 	]
 }
