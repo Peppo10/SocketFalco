@@ -98,7 +98,7 @@ int setRootDir()
     return PATH_FOUND;
 }
 
-const char* help_message = 
+const char* help_message =
     "Usage: SocketFalco [options] <arguments>\n\n"
     "Options:\n"
     "-l, -listen                   Start the server. Use -t for temporary session.\n"
@@ -190,7 +190,7 @@ namespace clca
     int load_chat(Chat &chat, basic_string<_PATH_CHAR> filename)
     {
         basic_string<_PATH_CHAR> filedir = getCacheDir() + _STR_FORMAT(/) + filename;
-        
+
         Session* session = Session::getInstance();
 
         if (!(chatcache = fstream(filedir.c_str())))
@@ -243,11 +243,11 @@ namespace clca
         Session* session = Session::getInstance();
 
         chatcache << session->remote_username << endl;
-        chatcache << std::setfill('0') << std::setw(IPSIZE) << int(         
+        chatcache << std::setfill('0') << std::setw(IPSIZE) << int(
 #ifdef _WIN32
-    session->remote_socket_addr.sin_addr.S_un.S_addr
+                                                                   session->remote_socket_addr.sin_addr.S_un.S_addr
 #elif __linux__
-    session->remote_socket_addr.sin_addr.s_addr
+                                                                   session->remote_socket_addr.sin_addr.s_addr
 #endif
         ) << endl;
 
@@ -285,9 +285,9 @@ namespace clca
 
             username.resize(15, ' ');
 
-            std::cout << c++ << ">" 
+            std::cout << c++ << ">"
                       << entry.path().filename().string()
-                      << "\t" << username 
+                      << "\t" << username
                       << "\t" << ip << std::endl;
         }
 
@@ -306,9 +306,9 @@ namespace clca
             cout << name << " is too long(max 15 characters)" << endl;
             return EXIT_FAILURE;
         }
-        else if (name.length() < 1)
+        else if (name.length() < 2)
         {
-            cout << "at least one character!" << endl;
+            cout << "at least two character!" << endl;
             return EXIT_FAILURE;
         }
 
@@ -326,7 +326,7 @@ namespace clca
 
         cout << "\033[38;2;255;255;0mUsername succesfully updated!\033[0m\n";
         cout << oldname << " -> " << name << endl;
-        return EXIT_SUCCESS;     
+        return EXIT_SUCCESS;
     }
 
     int loadUUID(int type, string &myname, string &uuid)
