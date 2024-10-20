@@ -45,7 +45,7 @@ SocketFalco -editChat 97b8b...        Open the specific chat and let the user to
 
 # Note
 * If you want to save the chat you MUST exit by typing "quit" on the console.
-* Server can support localhost connection, you're just chatting with your device(cache file is the same).
+* Server can support localhost connection, you're just caching the same files, you can encounter a particular behaviour when a peer is sending new messages(they became duplicated).
 
 # Diagram
 ![Diagram](https://github.com/user-attachments/assets/1383960b-31d2-4db6-942d-a6fd0e104b4c)
