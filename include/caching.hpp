@@ -75,7 +75,6 @@ using namespace std;
 
 namespace clca
 {
-
     namespace msg
     {
 

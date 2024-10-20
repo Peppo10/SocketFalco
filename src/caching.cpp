@@ -98,6 +98,32 @@ int setRootDir()
     return PATH_FOUND;
 }
 
+const char* help_message = 
+    "Usage: SocketFalco [options] <arguments>\n\n"
+    "Options:\n"
+    "-l, -listen                   Start the server. Use -t for temporary session.\n"
+    "                                Example: SocketFalco -l\n"
+    "                                         SocketFalco -l -t\n\n"
+    "-ls, -list                    List available chat sessions.\n"
+    "                                Example: SocketFalco -ls\n\n"
+    "-c, -connect <address>        Connect to a specified server address. Use -t for temporary session.\n"
+    "                                Example: SocketFalco -c 192.168.1.1\n"
+    "                                         SocketFalco -c -t 192.168.1.1\n\n"
+    "-eN, -editName <name>         Edit the current user name.\n"
+    "                                Example: SocketFalco -eN NewName\n\n"
+    "-eC, -editChat <ChatUUID>     Open the specific chat\n"
+    "                                Example: SocketFalco -eC chatUUID\n\n"
+    "-h, -help                     Show this help message and exit.\n"
+    "\n"
+    "Examples:\n"
+    "SocketFalco -listen                   Start the server.\n"
+    "SocketFalco -listen -t                Start the server in temporary mode.\n"
+    "SocketFalco -connect 192.168.0.1      Connect to the server at 192.168.0.1.\n"
+    "SocketFalco -connect -t 192.168.0.1   Connect to the server at 192.168.0.1 in temporary mode.\n"
+    "SocketFalco -list                     List all chat sessions.\n"
+    "SocketFalco -editName Alice           Change the username to \"Alice\".\n"
+    "SocketFalco -editChat 97b8b...        Open the specific chat and let the user to add new messages.\n";
+
 namespace clca
 {
     void Chat::addMessage(msg::Message msg)
@@ -269,6 +295,7 @@ namespace clca
     }
 
     int show_help(){
+        std::cout << help_message << endl;
         return EXIT_SUCCESS;
     }
 
@@ -346,7 +373,7 @@ namespace clca
         if (setRootDir() == PATH_NOT_FOUND)
             return EXIT_FAILURE;
 
-        root_dir = root_dir + _STR_FORMAT(/Socket-realtime-cached-chat);
+        root_dir = root_dir + _STR_FORMAT(/SocketFalco);
 
         try
         {
